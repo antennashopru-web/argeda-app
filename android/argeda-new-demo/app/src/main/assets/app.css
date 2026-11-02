@@ -420,6 +420,12 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 :root[data-theme="dark"] #toast { background: #2A3A5C; }
 #toast.show { opacity: 1; transform: none; pointer-events: auto; }
 #toast button { margin-left: auto; color: var(--sky); font: 700 14px 'Onest'; flex: none; }
+/* Плашка «Нет связи»: сверху, пока сервер недоступен; экраны при этом показывают сохранённое */
+#net { position: fixed; left: 16px; right: 16px; top: calc(var(--top) + 6px); z-index: 30; display: none; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #0B1630; color: #fff; font: 600 13px 'Onest'; box-shadow: 0 8px 24px rgba(11,22,48,.25); }
+#net.show { display: flex; }
+#net span { flex: 1; }
+#net span::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--coral); margin-right: 8px; vertical-align: 1px; }
+#net button { color: var(--sky); font: 700 13px 'Onest'; flex: none; }
 
 /* Данные с сервера: загрузка, ошибки, списки */
 .skel { pointer-events: none; }

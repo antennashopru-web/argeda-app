@@ -1,13 +1,13 @@
 'use strict';
 // ARGEDA — приложение маркета и мастерской в Пушкино. Каталог, цены, заказы и запись на ремонт —
 // с сервера argeda.ru (/api/app/v1). Последние ответы сохраняются на телефоне, чтобы без сети
-// открывались главная, разделы и заказы.
+// открывались главная, разделы, товары, избранное и заказы; плашка «Нет связи» уходит сама, когда сеть вернулась.
 
 const A = window.Android || null;   // мост с Android; в обычном браузере его нет
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
-const VERSION = '1.13';
-const VERSION_CODE = 14;
+const VERSION = '1.14';
+const VERSION_CODE = 15;
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -27,7 +27,7 @@ const MIN = 60 * 1000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const KEY = 'argeda.app.v2';
 const load = k => { try { return JSON.parse(localStorage.getItem(k)) || null; } catch (e) { return null; } };
 const old = load('argeda.app.v1') || {};
-const S = Object.assign({ cart: [], fav: [], snap: {}, orders: [], delivery: 'pickup', courierAddr: '', phone: old.phone || '', name: '', email: '', model: old.model || '', token: '', user: null, test: TEST_BUILD, payKey: '', hist: [], theme: 'auto', point: '', unsel: [], vibro: true, pay: 'auto' }, load(KEY) || {});
+const S = Object.assign({ cart: [], fav: [], snap: {}, orders: [], delivery: 'pickup', courierAddr: '', phone: old.phone || '', name: '', email: '', model: old.model || '', token: '', user: null, test: TEST_BUILD, payKey: '', hist: [], theme: 'auto', point: '', unsel: [], vibro: true, pay: 'auto', pendFav: [] }, load(KEY) || {});
 if (!TEST_BUILD) S.test = false;
 const ui = { catTab: 'goods', prob: 'battery', svc: null, day: 0, time: null, install: {}, query: '', sort: 'popular', gallery: 0, descOpen: false, flt: { model: false, today: false, pmin: '', pmax: '', brand: [] }, searchTab: 'all', fltCtx: '' };
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* без хранилища работаем в памяти */ } }
@@ -91,8 +91,10 @@ async function api(path, opts = {}) {
   try {
     r = await fetch(API + path, { method: opts.method || (opts.body ? 'POST' : 'GET'), headers, body: opts.body ? JSON.stringify(opts.body) : undefined, signal: ctrl.signal });
   } catch (e) {
+    wentOffline();
     const err = new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); err.offline = true; throw err;
   } finally { clearTimeout(timer); }
+  cameOnline();
   const data = await r.json().catch(() => null);
   if (r.status === 401 && S.token) { S.token = ''; S.user = null; save(); }
   if (!r.ok) {
@@ -101,6 +103,33 @@ async function api(path, opts = {}) {
   }
   return data;
 }
+
+// ---------- Связь ----------
+// Пока сервера нет (нет интернета или он лежит) — плашка сверху, экраны живут сохранённым.
+// Связь вернулась (ответил любой запрос, событие online или удачная проверка) — плашка уходит, данные обновляются,
+// отложенные действия (избранное, корзина) досылаются.
+const NET = { online: !(A && A.isOnline && !A.isOnline()) && navigator.onLine !== false, timer: null };
+function showNet() { const n = $('#net'); if (n) n.classList.toggle('show', !NET.online); }
+function wentOffline() {
+  if (!NET.online) return;
+  NET.online = false; showNet();
+  clearInterval(NET.timer);
+  NET.timer = setInterval(netPing, 20000); // раз в 20 с тихо пробуем сервер
+}
+function cameOnline() {
+  if (NET.online) return;
+  NET.online = true; showNet();
+  clearInterval(NET.timer); NET.timer = null;
+  Object.keys(ERR).forEach(k => { delete ERR[k]; });
+  Object.keys(MEM).forEach(k => { MEM[k].at = 0; }); // всё сохранённое считаем устаревшим — экраны подтянут свежее
+  flushPending();
+  refresh();
+}
+function netPing() { api('/config', { timeout: 8000 }).then(d => { if (d) { MEM.config = { data: d, at: Date.now() }; } }).catch(() => {}); }
+window.addEventListener('offline', wentOffline);
+window.addEventListener('online', () => { netPing(); });
+// Оформление, запись и оплата без сети невозможны — говорим сразу, а не после ошибки
+function needNet(what) { if (NET.online) return false; toast((what || 'Это') + ' получится, когда появится интернет'); return true; }
 
 // Данные для экранов: отдаём то, что уже есть (из памяти или сохранённое на телефоне),
 // а свежие подгружаем; когда пришли — перерисовываем экран, если он их показывает
@@ -117,11 +146,17 @@ function need(key, path, ttl, persist) {
     LOADING.add(key);
     api(path).then(d => {
       MEM[key] = { data: d, at: Date.now() }; delete ERR[key];
-      if (persist) { DISK[key] = { data: d, at: Date.now() }; try { localStorage.setItem(DISK_KEY, JSON.stringify(DISK)); } catch (e) { /* место кончилось — живём без запаса */ } }
+      if (persist) { DISK[key] = { data: d, at: Date.now() }; saveDisk(); }
     }).catch(e => { ERR[key] = { e, at: Date.now() }; })
       .finally(() => { LOADING.delete(key); if (used.has(key)) refresh(); });
   }
   return m ? m.data : null;
+}
+// На телефоне держим не больше 120 ответов — старые уходят первыми
+function saveDisk() {
+  const keys = Object.keys(DISK);
+  if (keys.length > 120) keys.sort((a, b) => (DISK[a].at || 0) - (DISK[b].at || 0)).slice(0, keys.length - 120).forEach(k => { delete DISK[k]; });
+  try { localStorage.setItem(DISK_KEY, JSON.stringify(DISK)); } catch (e) { /* место кончилось — живём без запаса */ }
 }
 const loading = key => LOADING.has(key);
 const errText = key => ERR[key] ? ERR[key].e.message : '';
@@ -168,10 +203,15 @@ function pruneSnaps() {
 }
 
 // Постраничные списки товаров: раздел, поиск
-const LISTS = {};
+// Первая страница последних 30 списков хранится на телефоне: без сети раздел открывается с товарами
+const LISTS = {}, LD_KEY = 'argeda.lists.v1', LD = load(LD_KEY) || {};
 function listOf(key, query) {
   let L = LISTS[key];
-  if (!L) L = LISTS[key] = { query, items: [], total: null, page: 0, loading: false, done: false, err: '' };
+  if (!L) {
+    L = LISTS[key] = { query, items: [], total: null, page: 0, loading: false, done: false, err: '' };
+    const c = LD[key];
+    if (c && c.items && c.items.length) { L.items = c.items; L.total = c.total; L.fromCache = true; remember(c.items); }
+  }
   return L;
 }
 function loadMore(key) {
@@ -180,8 +220,15 @@ function loadMore(key) {
   L.loading = true; L.err = '';
   api(`/catalog/products?${L.query}&page=${L.page + 1}&limit=40`).then(d => {
     remember(d.items);
-    L.items = L.items.concat(d.items || []); L.total = d.total; L.page = d.page || L.page + 1;
+    const page = d.page || L.page + 1;
+    L.items = L.fromCache ? (d.items || []) : L.items.concat(d.items || []); L.fromCache = false; L.total = d.total; L.page = page;
     L.done = !d.items || !d.items.length || L.items.length >= d.total;
+    if (page === 1) {
+      LD[key] = { items: L.items.slice(0, 40), total: L.total, at: Date.now() };
+      const keys = Object.keys(LD);
+      if (keys.length > 30) keys.sort((a, b) => (LD[a].at || 0) - (LD[b].at || 0)).slice(0, keys.length - 30).forEach(k => { delete LD[k]; });
+      try { localStorage.setItem(LD_KEY, JSON.stringify(LD)); } catch (e) { /* без запаса */ }
+    }
   }).catch(e => { L.err = e.message; }).finally(() => {
     L.loading = false;
     if (LISTS.active !== key) return;
@@ -255,8 +302,20 @@ function syncCart() {
   clearTimeout(cartPush);
   cartPush = setTimeout(() => { api('/cart', { method: 'PUT', body: { lines: cartLines() } }).catch(() => { /* повторим при следующем изменении */ }); }, 800);
 }
-function favAdd(id) { if (S.token) api('/favorites', { body: { product_id: id } }).catch(() => {}); }
-function favDel(id) { if (S.token) api('/favorites?product_id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => {}); }
+// Избранное на сервере: без сети действие ждёт в очереди и уходит, когда связь вернётся
+function favAdd(id) { favSend({ op: 'add', id }); }
+function favDel(id) { favSend({ op: 'del', id }); }
+function favSend(x) {
+  if (!S.token) return;
+  const p = x.op === 'add' ? api('/favorites', { body: { product_id: x.id } }) : api('/favorites?product_id=' + encodeURIComponent(x.id), { method: 'DELETE' });
+  p.catch(e => { if (e.offline) { S.pendFav = (S.pendFav || []).filter(y => y.id !== x.id).concat([x]); save(); } });
+}
+function flushPending() {
+  if (!S.token) return;
+  const q = S.pendFav || [];
+  if (q.length) { S.pendFav = []; save(); q.forEach(favSend); }
+  if (S.cart.some(l => l.kind === 'p')) syncCart();
+}
 // merge=true после входа: избранное и корзина телефона сливаются с сайтом; иначе сайт — источник истины
 async function pullShared(merge) {
   if (!S.token) return;
@@ -341,8 +400,8 @@ function allOrders() {
   const map = new Map();
   S.orders.forEach(o => map.set(o.key, o));
   if (S.token) {
-    (need('my-orders', '/orders', MIN) || []).forEach(o => { map.set(o.number, keepPoint(fromOrder(o), map.get(o.number))); });
-    (need('my-bookings', '/repair/bookings', MIN) || []).forEach(b => {
+    (need('my-orders', '/orders', MIN, true) || []).forEach(o => { map.set(o.number, keepPoint(fromOrder(o), map.get(o.number))); });
+    (need('my-bookings', '/repair/bookings', MIN, true) || []).forEach(b => {
       // В списке записей сервер не присылает модель — берём её из записи, сохранённой на телефоне
       const local = map.get(b.number), x = fromBooking(b);
       if (local && local.kind === 'repair') { if (!b.model) x.title = local.title; x.created = local.created || x.created; }
@@ -459,6 +518,7 @@ async function openProductBySlug(slug) {
 };
 // Возврат в приложение после оплаты (из браузера/Custom Tab, любым способом): сразу обновляем заказ
 window.appResumed = () => {
+  if (!NET.online) netPing();
   const cur = stack[stack.length - 1];
   if (cur && cur.name === 'order') {
     const o = allOrders().find(x => x.key === cur.arg);
@@ -846,7 +906,7 @@ ${body}</div>`,
     return {
       html: `<div class="scr light nodock">${header(c ? c.name : 'Каталог')}
 ${L.total != null ? `<div class="lcount">${count(L.total)}</div>` : ''}${sub}<div class="chips scroll">${filters}${sorts}</div>${body}</div>`,
-      after() { if (!L.items.length && !L.loading && !L.done && !L.err) loadMore(key); nearBottom = () => loadMore(key); },
+      after() { if ((!L.items.length || L.fromCache) && !L.loading && !L.done && !L.err) loadMore(key); nearBottom = () => loadMore(key); },
     };
   },
 
@@ -881,7 +941,7 @@ ${L.total != null ? `<div class="lcount">${count(L.total)}</div>` : ''}${sub}<di
           LISTS.active = key;
           const svc = servicesFor(v);
           // Товары подгружаем на вкладках «Всё» и «Товары»
-          if (tab !== 'services') { nearBottom = () => loadMore(key); if (!L.items.length && !L.loading && !L.done && !L.err) loadMore(key); }
+          if (tab !== 'services') { nearBottom = () => loadMore(key); if ((!L.items.length || L.fromCache) && !L.loading && !L.done && !L.err) loadMore(key); }
           else nearBottom = null;
           // Запрос, по которому что-то нашлось, запоминаем в «Вы искали»
           if (L.items.length) { clearTimeout(histTimer); histTimer = setTimeout(() => { if (q.value.trim() === v) rememberQuery(v); }, 1500); }
@@ -920,7 +980,7 @@ ${L.total != null ? `<div class="lcount">${count(L.total)}</div>` : ''}${sub}<di
   },
 
   product(id) {
-    const full = need('p:' + id, '/catalog/products/' + encodeURIComponent(id), 10 * MIN);
+    const full = need('p:' + id, '/catalog/products/' + encodeURIComponent(id), 10 * MIN, true);
     const p = full || prod(id);
     if (!p) {
       return { html: `<div class="scr light nodock">${header('Товар')}${ERR['p:' + id] ? errBox(errText('p:' + id), 'p:' + id) : '<div class="loading">Открываем товар…</div>'}</div>` };
@@ -1017,7 +1077,7 @@ ${full && full.category_id ? strip('Похожие товары', notThis(simila
     const warns = id => (qd ? qd.warnings.filter(w => w.product_id === id) : []).map(w => w.code === 'price_changed' ? `Цена изменилась: было ${money(w.old)}` : w.message || 'Проверьте товар').join(' · ');
     const lines = S.cart.map(l => {
       if (l.kind === 'p') {
-        const p = S.snap[l.id] || prod(l.id) || need('p:' + l.id, '/catalog/products/' + encodeURIComponent(l.id), 10 * MIN) || { name: 'Товар', price: 0 }, ql = qLine(l.id), sel = isSel(l.id);
+        const p = S.snap[l.id] || prod(l.id) || need('p:' + l.id, '/catalog/products/' + encodeURIComponent(l.id), 10 * MIN, true) || { name: 'Товар', price: 0 }, ql = qLine(l.id), sel = isSel(l.id);
         // «Нет в продаже» только для отмеченного товара, которого нет в пересчёте; снятые товары сервер не считает
         const gone = sel && qd && !ql, price = ql ? ql.sum : (p.price || 0) * l.qty, old = (ql && ql.old_price) || p.old_price;
         const disc = old && old > (ql ? ql.price : p.price) ? Math.round((1 - (ql ? ql.price : p.price) / old) * 100) : 0;
@@ -1147,7 +1207,7 @@ ${items}</div>`,
   },
 
   favs() {
-    const items = S.fav.map(id => prod(id) || need('p:' + id, '/catalog/products/' + encodeURIComponent(id), 10 * MIN)).filter(Boolean);
+    const items = S.fav.map(id => prod(id) || need('p:' + id, '/catalog/products/' + encodeURIComponent(id), 10 * MIN, true)).filter(Boolean);
     const body = items.length ? `<div class="grid">${items.map(pcard).join('')}</div>`
       : `<div class="empty"><div class="sq c-coral">${ic('heart', CORAL, 32)}</div><h3>Пока пусто</h3><p>Нажмите на сердечко в карточке товара, чтобы сохранить его.</p></div>`;
     return { html: `<div class="scr light nodock">${header('Избранное')}${body}</div>` };
@@ -1421,6 +1481,7 @@ const ACTIONS = {
   delivery(x) { S.delivery = x; S.payKey = ''; save(); refresh(); },
   pay(x) { S.pay = x; S.payKey = ''; save(); refresh(); },
   checkout() {
+    if (needNet('Оформить заказ')) return;
     if (S.delivery === 'courier' && !S.courierAddr.trim()) { toast('Укажите адрес доставки'); const a = $('#addr'); if (a) a.focus(); return; }
     const q = MEM.quote && MEM.quote.data, t = q ? q.totals : { total: 0 };
     const online = payShow() && effPay() === 'online';
@@ -1462,7 +1523,8 @@ const ACTIONS = {
       },
     });
   },
-  payNow(key) { startPay(key); },
+  payNow(key) { if (needNet('Оплатить')) return; startPay(key); },
+  retryNet() { netPing(); toast('Проверяем связь…'); },
   prob(id) { ui.prob = id; ui.svc = null; if (stack[stack.length - 1].name === 'repair') refresh(); else go('repair', null, { reset: true }); },
   probSvc(x) { const [p, s] = x.split('|'); ui.prob = p; ui.svc = s; go('repair', null, { reset: true }); },
   svc(id) { ui.svc = id; refresh(); },
@@ -1471,6 +1533,7 @@ const ACTIONS = {
   book() {
     const model = deviceModel(), R = repairInfo(), rs = R.data, svc = rs && rs.services.find(s => s.id === ui.svc);
     if (!svc || !ui.time) return;
+    if (needNet('Записаться')) return;
     const date = iso(nextDays()[ui.day].date), when = fmtDay(date) + ' в ' + ui.time;
     contactSheet({
       title: 'Запись на ремонт',
@@ -1622,4 +1685,6 @@ document.addEventListener('click', e => {
 // Обновления проверяет само приложение (Updater.java по argeda.ru/app/version.json): в браузере проверять нечего
 
 render();
+showNet();
+if (!NET.online) netPing();
 if (S.token) pullShared(false);

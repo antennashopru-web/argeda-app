@@ -4,6 +4,9 @@
     <string name="offline_title">Нет связи с кабинетом</string>
     <string name="offline_text">Проверьте интернет и попробуйте ещё раз</string>
     <string name="retry">Повторить</string>
+    <string name="offline_title_net">Нет интернета</string>
+    <string name="offline_text_net">Как только связь появится, кабинет откроется сам. Страницы, которые вы уже открывали, доступны и без сети.</string>
+    <string name="net_offline">Нет связи — показываем сохранённое</string>
     <string name="no_app">Не нашлось приложения, чтобы это открыть</string>
     <string name="download_started">Файл сохраняется в «Загрузки»</string>
     <string name="download_saved">Файл сохранён в «Загрузки»</string>

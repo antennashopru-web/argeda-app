@@ -126,7 +126,7 @@ jobs:
           # Правило проекта: в dex не должно быть LambdaMetafactory (сборка без SDK такие приложения роняла)
           for f in out/*.apk; do
             n=$(unzip -p "$f" 'classes*.dex' | strings | grep -c LambdaMetafactory || true)
-            echo "$f: LambdaMetafactory=$n, подписан: $(unzip -l "$f" | grep -c 'META-INF/.*\.\(RSA\|EC\)' || true)"
+            echo "$f: LambdaMetafactory=$n, подписан (v2-блок): $(grep -c 'APK Sig Block 42' "$f" || true)"
             if [ "$n" != 0 ]; then echo "::error::$f содержит LambdaMetafactory"; exit 1; fi
           done
           cat > out/version.json <<JSON

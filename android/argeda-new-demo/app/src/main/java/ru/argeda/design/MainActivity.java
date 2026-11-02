@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private String pendingJs;
     private boolean pageReady;
+    private Net net;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -114,6 +115,8 @@ public class MainActivity extends Activity {
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
         // Мост открыт только своим страницам из assets: чужие адреса в это окно не загружаются
         web.addJavascriptInterface(new Bridge(), "Android");
+        // Без интернета картинки берутся из кэша WebView, а страница видит navigator.onLine = false
+        net = new Net(this, web, null);
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -237,6 +240,12 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String version() {
             return BuildConfig.VERSION_NAME;
+        }
+
+        // Есть ли сейчас интернет — страница показывает плашку «Нет связи» и живёт сохранённым
+        @JavascriptInterface
+        public boolean isOnline() {
+            return net == null || net.isOnline();
         }
 
         @JavascriptInterface
@@ -363,6 +372,18 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         web.saveState(out);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (net != null) net.start();
+    }
+
+    @Override
+    protected void onStop() {
+        if (net != null) net.stop();
+        super.onStop();
     }
 
     @Override

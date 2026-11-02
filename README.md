@@ -8,6 +8,8 @@
 | `android/argeda-cabinets` | Кабинеты сотрудников и продавцов: **ARGEDA Продавец**, **ARGEDA Пункт**, **ARGEDA Курьер**, **ARGEDA Админ** (один код, четыре сборки) |
 | `android/tools/apk-no-sdk` | Запасная сборка без Android SDK |
 
+Приложения обновляются сами из Releases ([docs/avtoobnovlenie.md](docs/avtoobnovlenie.md)) и работают без интернета на сохранённых данных ([docs/oflayn.md](docs/oflayn.md)).
+
 ## Скачать
 
 Готовые APK — в [Releases](https://github.com/antennashopru-web/argeda-app/releases/latest):

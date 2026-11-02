@@ -34,6 +34,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONException;
@@ -65,6 +66,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private ProgressBar progress;
     private View offline;
+    private TextView offlineTitle, offlineText, netbar;
+    private Net net;
     private String lastUrl;
     private ValueCallback<Uri[]> fileCallback;
     private PermissionRequest cameraRequest;
@@ -80,6 +83,9 @@ public class MainActivity extends Activity {
         web = findViewById(R.id.web);
         progress = findViewById(R.id.progress);
         offline = findViewById(R.id.offline);
+        offlineTitle = findViewById(R.id.offline_title);
+        offlineText = findViewById(R.id.offline_text);
+        netbar = findViewById(R.id.netbar);
         findViewById(R.id.retry).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -89,6 +95,19 @@ public class MainActivity extends Activity {
         });
         drawBehindSystemBars();
         setupWebView();
+        // Без интернета кабинет открывается из кэша WebView с плашкой «Нет связи»; связь вернулась — плашка уходит,
+        // а если страница так и не открылась, пробуем снова сами
+        net = new Net(this, web, new Net.Listener() {
+            @Override
+            public void onNetChanged(boolean online) {
+                netbar.setVisibility(online ? View.GONE : View.VISIBLE);
+                if (online && offline.getVisibility() == View.VISIBLE) {
+                    offline.setVisibility(View.GONE);
+                    web.loadUrl(lastUrl != null ? lastUrl : Links.HOME);
+                }
+            }
+        });
+        netbar.setVisibility(net.isOnline() ? View.GONE : View.VISIBLE);
         if (state == null || web.restoreState(state) == null) {
             String link = siteLink(getIntent());
             web.loadUrl(link != null ? link : Links.HOME);
@@ -179,7 +198,12 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) offline.setVisibility(View.VISIBLE);
+                if (!request.isForMainFrame()) return;
+                // Страницы нет ни в сети, ни в кэше: объясняем, чего ждём
+                boolean noNet = net != null && !net.isOnline();
+                offlineTitle.setText(noNet ? R.string.offline_title_net : R.string.offline_title);
+                offlineText.setText(noNet ? R.string.offline_text_net : R.string.offline_text);
+                offline.setVisibility(View.VISIBLE);
             }
 
             // Копия сайта закрыта паролем сервера: спрашиваем логин и пароль, как браузер
@@ -569,6 +593,18 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         web.saveState(out);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (net != null) net.start();
+    }
+
+    @Override
+    protected void onStop() {
+        if (net != null) net.stop();
+        super.onStop();
     }
 
     @Override

@@ -22,6 +22,22 @@
         android:progressBackgroundTint="@android:color/transparent"
         android:progressTint="@color/blue" />
 
+    <!-- Плашка «Нет связи» внизу: страница сверху показана из кэша -->
+    <TextView
+        android:id="@+id/netbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@color/navy"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:text="@string/net_offline"
+        android:textColor="@color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/offline"
         android:layout_width="match_parent"
@@ -44,6 +60,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
+            android:id="@+id/offline_title"
             android:text="@string/offline_title"
             android:textColor="@color/ink"
             android:textSize="20sp"
@@ -53,6 +70,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:id="@+id/offline_text"
             android:gravity="center"
             android:text="@string/offline_text"
             android:textColor="@color/muted"
