@@ -79,7 +79,9 @@ jobs:
             exit 0
           fi
           for app in "$BUYER" "$CABINETS"; do
-            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KS" "$SP" "$KA" "$KP" > "$app/app/keystore.properties"
+            # build.gradle ищет ключ относительно папки app — кладём копию ключа рядом (*.jks в .gitignore)
+            cp "$KS" "$app/app/argeda-release.jks"
+            printf 'storeFile=argeda-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$SP" "$KA" "$KP" > "$app/app/keystore.properties"
           done
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
