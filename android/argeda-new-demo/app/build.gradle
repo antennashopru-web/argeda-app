@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Ключ подписи и пароли — из keystore.properties (не в репозитории, см. .gitignore).
+// Без файла релиз просто соберётся неподписанным, отладочная сборка работает всегда.
+def keystorePropsFile = rootProject.file('app/keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
+android {
+    namespace 'ru.argeda.design'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ru.argeda.design'
+        minSdk 26
+        targetSdk 35
+        versionCode 14
+        versionName '1.13'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file('app/' + keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Для RuStore: без отладки, со сжатием и обфускацией кода
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        // Старые предупреждения SDK не должны останавливать сборку релиза
+        abortOnError false
+    }
+}

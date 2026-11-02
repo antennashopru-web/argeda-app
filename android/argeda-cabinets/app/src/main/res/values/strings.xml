@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- app_name задаёт разновидность сборки (seller, pvz, courier, admin) -->
+    <string name="offline_title">Нет связи с кабинетом</string>
+    <string name="offline_text">Проверьте интернет и попробуйте ещё раз</string>
+    <string name="retry">Повторить</string>
+    <string name="no_app">Не нашлось приложения, чтобы это открыть</string>
+    <string name="download_started">Файл сохраняется в «Загрузки»</string>
+    <string name="download_saved">Файл сохранён в «Загрузки»</string>
+    <string name="download_failed">Не удалось сохранить файл</string>
+    <string name="camera_denied">Без разрешения на камеру фото и сканер работать не будут</string>
+    <string name="location_denied">Без разрешения на геолокацию карта не покажет, где вы</string>
+    <string name="not_member_title">Этот аккаунт не для этого кабинета</string>
+    <string name="not_member_text">Сайт открыл личный кабинет покупателя: у этого аккаунта нет доступа сюда. Выйдите и войдите нужным логином.</string>
+    <string name="not_member_signout">Выйти и войти другим</string>
+    <string name="not_member_stay">Остаться</string>
+    <string name="http_auth_title">Пароль сайта %1$s</string>
+    <string name="http_auth_text">Это пароль самого сайта-копии, как в браузере. Не пароль от кабинета: вход в кабинет будет следующим шагом.</string>
+    <string name="http_auth_login">Логин</string>
+    <string name="http_auth_password">Пароль</string>
+    <string name="http_auth_ok">Войти</string>
+    <string name="http_auth_cancel">Отмена</string>
+
+    <string name="ch_orders">Заказы и выдача</string>
+    <string name="ch_chat">Сообщения</string>
+    <string name="ch_other">Остальное</string>
+    <string name="n_default_text">Откройте кабинет, чтобы посмотреть</string>
+
+    <!-- Автообновление -->
+    <string name="upd_title">Новая версия %1$s</string>
+    <string name="upd_text">Обновление %1$s скачается в «Загрузки» и откроется установщик. Ваши данные и вход сохранятся.</string>
+    <string name="upd_must">Без этого обновления приложение дальше не работает.</string>
+    <string name="upd_install">Обновить</string>
+    <string name="upd_later">Позже</string>
+    <string name="upd_downloading">ARGEDA %1$s — обновление</string>
+    <string name="upd_started">Скачиваю обновление… Когда загрузится, откроется установщик</string>
+    <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже или скачайте с argeda.ru/app</string>
+    <string name="upd_open_failed">Не удалось открыть установщик. Файл обновления лежит в «Загрузках»</string>
+    <string name="upd_check_failed">Не удалось проверить обновления. Проверьте интернет</string>
+    <string name="upd_latest">У вас последняя версия</string>
+</resources>

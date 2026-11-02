@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="vydacha"
+        android:shortcutShortLabel="@string/sc_vydacha">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://pvz.argeda.ru/pvz/vydacha?utm_source=pvz_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.pvz" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="priyomka"
+        android:shortcutShortLabel="@string/sc_priyomka">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://pvz.argeda.ru/pvz/priyomka?utm_source=pvz_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.pvz" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="poisk"
+        android:shortcutShortLabel="@string/sc_poisk">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://pvz.argeda.ru/pvz/poisk?utm_source=pvz_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.pvz" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="vozvraty"
+        android:shortcutShortLabel="@string/sc_vozvraty">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://pvz.argeda.ru/pvz/vozvraty?utm_source=pvz_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.pvz" />
+    </shortcut>
+</shortcuts>

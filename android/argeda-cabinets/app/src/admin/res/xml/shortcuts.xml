@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="orders"
+        android:shortcutShortLabel="@string/sc_orders">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://admin.argeda.ru/admin/orders?utm_source=admin_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.admin" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="punkty"
+        android:shortcutShortLabel="@string/sc_punkty">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://admin.argeda.ru/admin/punkty?utm_source=admin_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.admin" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="sellers"
+        android:shortcutShortLabel="@string/sc_sellers">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://admin.argeda.ru/admin/sellers?utm_source=admin_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.admin" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="chat"
+        android:shortcutShortLabel="@string/sc_chat">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://admin.argeda.ru/admin/chat?utm_source=admin_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.admin" />
+    </shortcut>
+</shortcuts>

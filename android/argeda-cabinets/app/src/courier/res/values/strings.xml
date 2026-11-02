@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_courier">Доставки</string>
+    <string name="sc_sborka">Сборка на складе</string>
+</resources>

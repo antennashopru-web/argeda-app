@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_vydacha">Выдача</string>
+    <string name="sc_priyomka">Приёмка</string>
+    <string name="sc_poisk">Поиск заказа</string>
+    <string name="sc_vozvraty">Возвраты</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_orders">Заказы</string>
+    <string name="sc_shipments">Отгрузки</string>
+    <string name="sc_chat">Чат с покупателями</string>
+    <string name="sc_products">Товары</string>
+</resources>

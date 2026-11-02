@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="courier"
+        android:shortcutShortLabel="@string/sc_courier">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://courier.argeda.ru/courier?utm_source=courier_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.courier" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="sborka"
+        android:shortcutShortLabel="@string/sc_sborka">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://courier.argeda.ru/sborka?utm_source=courier_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.courier" />
+    </shortcut>
+</shortcuts>

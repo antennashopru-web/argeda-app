@@ -1,0 +1,154 @@
+# Сборка и подпись APK ARGEDA в GitHub Actions.
+# Каждый push в main (или запуск вручную) собирает покупательское приложение и четыре кабинета,
+# подписывает их ключом из секретов репозитория и выкладывает в Releases вместе с version.json.
+# Приложения читают version.json и качают APK по ссылкам releases/latest/download/… — сервер не нужен.
+# Секреты (Settings → Secrets and variables → Actions): KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
+# Без секретов сборка проходит, но APK остаются неподписанными и в Releases не попадают.
+name: Сборка APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Выложить в Releases'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Собрать и подписать
+    runs-on: ubuntu-latest
+    env:
+      BUYER: android/argeda-new-demo
+      CABINETS: android/argeda-cabinets
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Ключ подписи из секретов
+        id: key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Секрет KEYSTORE_BASE64 не задан — APK будут неподписанными и в Releases не попадут"
+            exit 0
+          fi
+          KS="$RUNNER_TEMP/argeda-release.jks"
+          echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > "$KS"
+          for app in "$BUYER" "$CABINETS"; do
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KS" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > "$app/app/keystore.properties"
+          done
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Версии из build.gradle
+        id: ver
+        run: |
+          v() { grep -oE "versionName +'[^']+'" "$1/app/build.gradle" | cut -d"'" -f2; }
+          c() { grep -oE 'versionCode +[0-9]+' "$1/app/build.gradle" | grep -oE '[0-9]+'; }
+          {
+            echo "buyer=$(v "$BUYER")"; echo "buyer_code=$(c "$BUYER")"
+            echo "cab=$(v "$CABINETS")"; echo "cab_code=$(c "$CABINETS")"
+          } >> "$GITHUB_OUTPUT"
+          echo "Покупательское $(v "$BUYER") (код $(c "$BUYER")), кабинеты $(v "$CABINETS") (код $(c "$CABINETS"))"
+
+      - name: Покупательское приложение
+        run: |
+          cd "$BUYER" && chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Кабинеты (продавец, пункт, курьер, админ)
+        run: |
+          cd "$CABINETS" && chmod +x gradlew
+          ./gradlew --no-daemon assembleSellerLiveRelease assemblePvzLiveRelease assembleCourierLiveRelease assembleAdminLiveRelease
+
+      - name: Собрать файлы и проверить
+        id: out
+        env:
+          BUYER_VER: ${{ steps.ver.outputs.buyer }}
+          BUYER_CODE: ${{ steps.ver.outputs.buyer_code }}
+          CAB_VER: ${{ steps.ver.outputs.cab }}
+          CAB_CODE: ${{ steps.ver.outputs.cab_code }}
+          SIGNED: ${{ steps.key.outputs.signed }}
+        run: |
+          set -e
+          mkdir -p out
+          # Подписанный файл, а без ключа — неподписанный (app-release-unsigned.apk)
+          pick() { f=$(ls "$1"/*.apk | grep -v unsigned | head -1); [ -n "$f" ] || f=$(ls "$1"/*.apk | head -1); echo "$f"; }
+          cp "$(pick "$BUYER/app/build/outputs/apk/release")" out/argeda.apk
+          for cab in seller pvz courier admin; do
+            cp "$(pick "$CABINETS/app/build/outputs/apk/${cab}Live/release")" "out/argeda-$cab.apk"
+          done
+          # Правило проекта: в dex не должно быть LambdaMetafactory (сборка без SDK такие приложения роняла)
+          for f in out/*.apk; do
+            n=$(unzip -p "$f" 'classes*.dex' | strings | grep -c LambdaMetafactory || true)
+            echo "$f: LambdaMetafactory=$n, подписан: $(unzip -l "$f" | grep -c 'META-INF/.*\.\(RSA\|EC\)' || true)"
+            if [ "$n" != 0 ]; then echo "::error::$f содержит LambdaMetafactory"; exit 1; fi
+          done
+          cat > out/version.json <<JSON
+          {
+            "argeda":  { "code": $BUYER_CODE, "name": "$BUYER_VER", "url": "https://github.com/antennashopru-web/argeda-app/releases/latest/download/argeda.apk" },
+            "seller":  { "code": $CAB_CODE, "name": "$CAB_VER", "url": "https://github.com/antennashopru-web/argeda-app/releases/latest/download/argeda-seller.apk" },
+            "pvz":     { "code": $CAB_CODE, "name": "$CAB_VER", "url": "https://github.com/antennashopru-web/argeda-app/releases/latest/download/argeda-pvz.apk" },
+            "courier": { "code": $CAB_CODE, "name": "$CAB_VER", "url": "https://github.com/antennashopru-web/argeda-app/releases/latest/download/argeda-courier.apk" },
+            "admin":   { "code": $CAB_CODE, "name": "$CAB_VER", "url": "https://github.com/antennashopru-web/argeda-app/releases/latest/download/argeda-admin.apk" }
+          }
+          JSON
+          python3 -c 'import json,sys; json.load(open("out/version.json"))'
+          ls -la out
+          echo "tag=v$BUYER_VER-c$CAB_VER" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: argeda-apk-${{ steps.out.outputs.tag }}${{ steps.key.outputs.signed == 'true' && '' || '-unsigned' }}
+          path: out/*
+          retention-days: 30
+
+      - name: Выложить в Releases
+        if: steps.key.outputs.signed == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.release))
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.out.outputs.tag }}
+          name: ARGEDA ${{ steps.ver.outputs.buyer }} · кабинеты ${{ steps.ver.outputs.cab }}
+          body: |
+            Подписанные APK, собраны автоматически из `${{ github.sha }}`.
+
+            | Файл | Версия | Код |
+            |---|---|---|
+            | argeda.apk — покупательское | ${{ steps.ver.outputs.buyer }} | ${{ steps.ver.outputs.buyer_code }} |
+            | argeda-seller.apk, argeda-pvz.apk, argeda-courier.apk, argeda-admin.apk — кабинеты | ${{ steps.ver.outputs.cab }} | ${{ steps.ver.outputs.cab_code }} |
+
+            Приложения обновляются сами из этого релиза (ссылки `releases/latest/download/…`). Подробно — `docs/avtoobnovlenie.md`.
+          files: out/*
+          overwrite_files: true
+          make_latest: true
