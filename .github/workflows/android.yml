@@ -2,8 +2,8 @@
 # Каждый push в main (или запуск вручную) собирает покупательское приложение и четыре кабинета,
 # подписывает их ключом из секретов репозитория и выкладывает в Releases вместе с version.json.
 # Приложения читают version.json и качают APK по ссылкам releases/latest/download/… — сервер не нужен.
-# Секреты (Settings → Secrets and variables → Actions): KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
-# Без секретов сборка проходит, но APK остаются неподписанными и в Releases не попадают.
+# Ключ: создаётся workflow «Создать ключ подписи» (klyuch.yml) и лежит зашифрованным в signing/, пароль — секрет SIGNING_PASSWORD.
+# Запасной путь: свой ключ в секретах KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD. Без ключа APK неподписанные, релиза нет.
 name: Сборка APK
 
 on:
@@ -11,10 +11,12 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'signing/**'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
       - 'android/**'
+      - 'signing/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
     inputs:
@@ -54,20 +56,30 @@ jobs:
       - name: Ключ подписи из секретов
         id: key
         env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
+          KS="$RUNNER_TEMP/argeda-release.jks"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            # Путь 1: готовый ключ целиком в секретах (4 секрета)
+            echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > "$KS"
+            SP="$KEYSTORE_PASSWORD"; KA="$KEY_ALIAS"; KP="$KEY_PASSWORD"
+          elif [ -n "$SIGNING_PASSWORD" ] && [ -f signing/argeda-release.jks.enc ]; then
+            # Путь 2: ключ создан workflow «Создать ключ подписи», лежит в репозитории зашифрованным, в секрете только пароль
+            printf '%s' "$SIGNING_PASSWORD" > "$RUNNER_TEMP/pass.txt"
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in signing/argeda-release.jks.enc -out "$KS" -pass "file:$RUNNER_TEMP/pass.txt"
+            rm -f "$RUNNER_TEMP/pass.txt"
+            SP="$SIGNING_PASSWORD"; KA="argeda"; KP="$SIGNING_PASSWORD"
+          else
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Секрет KEYSTORE_BASE64 не задан — APK будут неподписанными и в Releases не попадут"
+            echo "::warning::Ключа подписи нет (секрет SIGNING_PASSWORD + signing/argeda-release.jks.enc, либо KEYSTORE_BASE64) — APK неподписанные, в Releases не попадут"
             exit 0
           fi
-          KS="$RUNNER_TEMP/argeda-release.jks"
-          echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > "$KS"
           for app in "$BUYER" "$CABINETS"; do
-            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KS" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > "$app/app/keystore.properties"
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KS" "$SP" "$KA" "$KP" > "$app/app/keystore.properties"
           done
           echo "signed=true" >> "$GITHUB_OUTPUT"
 

@@ -1,0 +1,71 @@
+# Создание ключа подписи прямо в GitHub (один раз). Запуск вручную: Actions → «Создать ключ подписи» → Run workflow.
+# Нужен секрет SIGNING_PASSWORD (пароль придумывает владелец, 16+ знаков). Ключ создаётся здесь, шифруется этим
+# паролем (AES-256) и сохраняется в репозиторий как signing/argeda-release.jks.enc. Сам ключ и пароль никуда не выводятся.
+# Сборка (android.yml) расшифровывает его тем же секретом. Потеря пароля = потеря ключа: установленные приложения
+# тогда можно будет только переустановить.
+name: Создать ключ подписи
+
+on:
+  workflow_dispatch:
+    inputs:
+      perezapisat:
+        description: 'Перезаписать уже существующий ключ (ОПАСНО: старые приложения перестанут обновляться)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  key:
+    name: Создать и сохранить зашифрованным
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Проверки
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          PEREZAPISAT: ${{ inputs.perezapisat }}
+        run: |
+          if [ -z "$SIGNING_PASSWORD" ]; then
+            echo "::error::Сначала заведите секрет SIGNING_PASSWORD: Settings → Secrets and variables → Actions"; exit 1
+          fi
+          if [ "${#SIGNING_PASSWORD}" -lt 12 ]; then
+            echo "::error::Пароль короче 12 знаков — зашифрованный ключ лежит в открытом репозитории, нужен длинный пароль"; exit 1
+          fi
+          if [ -f signing/argeda-release.jks.enc ] && [ "$PEREZAPISAT" != "true" ]; then
+            echo "::error::Ключ уже есть (signing/argeda-release.jks.enc). Чтобы заменить, поставьте галочку «Перезаписать»"; exit 1
+          fi
+
+      - name: Создать ключ и зашифровать
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -e
+          mkdir -p signing
+          KS="$RUNNER_TEMP/argeda-release.jks"
+          printf '%s' "$SIGNING_PASSWORD" > "$RUNNER_TEMP/pass.txt"
+          keytool -genkeypair -keystore "$KS" -storetype PKCS12 -storepass:file "$RUNNER_TEMP/pass.txt" \
+            -alias argeda -keyalg RSA -keysize 4096 -validity 10950 \
+            -dname "CN=ARGEDA, O=ARGEDA, L=Pushkino, C=RU"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$KS" -out signing/argeda-release.jks.enc -pass "file:$RUNNER_TEMP/pass.txt"
+          # Проверяем, что расшифровывается и открывается
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in signing/argeda-release.jks.enc -pass "file:$RUNNER_TEMP/pass.txt" > "$RUNNER_TEMP/check.jks"
+          keytool -list -keystore "$RUNNER_TEMP/check.jks" -storepass:file "$RUNNER_TEMP/pass.txt" -alias argeda | sed 's/^/  /'
+          date -u '+%Y-%m-%d %H:%M UTC' > signing/sozdan.txt
+          rm -f "$KS" "$RUNNER_TEMP/check.jks" "$RUNNER_TEMP/pass.txt"
+
+      - name: Сохранить в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add signing/argeda-release.jks.enc signing/sozdan.txt
+          git commit -m "Ключ подписи argeda-release (зашифрован паролем из секрета SIGNING_PASSWORD)"
+          git push
+          echo "Готово: ключ сохранён. Теперь каждый push в main даёт подписанный релиз."

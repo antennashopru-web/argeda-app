@@ -7,25 +7,23 @@
 
 Где смотреть: https://github.com/antennashopru-web/argeda-app/actions и https://github.com/antennashopru-web/argeda-app/releases
 
-## Ключ подписи — один раз
+## Ключ подписи — один раз, без компьютера
 
-Ключ `argeda-release.jks` хранится только в секретах GitHub (Settings → Secrets and variables → Actions → New repository secret):
+1. Придумать пароль ключа (16+ знаков, буквы и цифры) и записать его в надёжное место: без него ключ не восстановить.
+2. Settings → Secrets and variables → Actions → New repository secret: имя `SIGNING_PASSWORD`, значение — этот пароль.
+3. Actions → «Создать ключ подписи» → Run workflow. GitHub создаст ключ (RSA-4096, alias `argeda`, 30 лет), зашифрует его
+   этим паролем (AES-256) и сохранит в репозиторий как `signing/argeda-release.jks.enc`. Сам ключ и пароль никуда не выводятся.
+4. Сразу после этого запустится сборка и выйдет первый подписанный релиз.
 
-| Секрет | Что это |
-|---|---|
-| `KEYSTORE_BASE64` | Сам файл ключа, закодированный в base64 (одна длинная строка) |
-| `KEYSTORE_PASSWORD` | Пароль хранилища |
-| `KEY_ALIAS` | Имя ключа внутри хранилища |
-| `KEY_PASSWORD` | Пароль ключа (часто такой же, как у хранилища) |
+Зашифрованный ключ лежит в открытом репозитории, поэтому пароль должен быть длинным. Потерян пароль = потерян ключ:
+установленные приложения тогда можно только удалить и поставить заново.
 
-Как получить base64 на ПК с Windows — в PowerShell (строка попадёт в буфер обмена, вставить в секрет):
+Запасной путь, если ключ уже есть (например, `argeda-release.jks` с ПК): секреты `KEYSTORE_BASE64` (файл .jks в base64),
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. В PowerShell base64 делается так:
+`[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\...\argeda-release.jks")) | Set-Clipboard`.
+Если заданы оба пути, используется ключ из `KEYSTORE_BASE64`.
 
-```
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\admin\Downloads\argeda-release.jks")) | Set-Clipboard
-```
-
-Пароли и файл ключа в чат и в репозиторий не кладём. Пока секретов нет, сборка проходит, но APK неподписанные
-и в Releases не выкладываются (в Actions — предупреждение).
+Пока ключа нет, сборка проходит, но APK неподписанные и в Releases не выкладываются (в Actions — предупреждение).
 
 ## Новая версия
 
