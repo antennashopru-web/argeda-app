@@ -54,6 +54,13 @@ public class MainActivity extends Activity {
         web = findViewById(R.id.web);
         drawBehindSystemBars();
         setupWebView();
+        // После обновления приложения WebView мог держать в кэше старые app.js/app.css — сбрасываем кэш один раз на новую версию
+        android.content.SharedPreferences vp = getSharedPreferences("argeda_ver", MODE_PRIVATE);
+        if (vp.getInt("code", 0) != BuildConfig.VERSION_CODE) {
+            web.clearCache(true);
+            vp.edit().putInt("code", BuildConfig.VERSION_CODE).apply();
+            state = null;
+        }
         if (state == null || web.restoreState(state) == null) web.loadUrl(START);
         handleDeepLink(getIntent());
         checkUpdate(false);

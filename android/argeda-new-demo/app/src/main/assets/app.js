@@ -725,11 +725,11 @@ function bannerList() {
   const scr = svcOf('screen'), bat = svcOf('battery');
   const svcLine = (s, what) => s ? `${what} ${durText(s)} · от ${money(s.price_from)}` : 'Запишитесь — платите после ремонта';
   return [
+    { key: 'pickup', img: 'img/banners/pickup.jpg', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
+    { key: 'sellers', img: 'img/banners/sellers.jpg', kicker: 'Продавцам', h: 'Продавайте на ARGEDA', p: 'Свой магазин и пункты выдачи в Пушкино' },
     { key: 'screen', img: 'img/banners/screen.jpg', kicker: 'Ремонт', h: 'Разбит экран?', p: svcLine(scr, 'Замена') },
     { key: 'battery', img: 'img/banners/battery.jpg', kicker: 'Ремонт', h: 'Быстро садится?', p: svcLine(bat, 'Замена аккумулятора') },
     remotes && { key: 'remotes', img: 'img/banners/remotes.jpg', kicker: 'Каталог', h: 'Пульты для любого ТВ', p: `${remotes.count.toLocaleString('ru-RU')} ${plural(remotes.count, 'модель', 'модели', 'моделей')} в каталоге` },
-    { key: 'pickup', img: 'img/banners/pickup.jpg', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
-    { key: 'sellers', img: 'img/banners/sellers.jpg', kicker: 'Продавцам', h: 'Продавайте на ARGEDA', p: 'Свой магазин и пункты выдачи в Пушкино' },
   ].filter(Boolean);
 }
 let SRV_BANNERS = [];
