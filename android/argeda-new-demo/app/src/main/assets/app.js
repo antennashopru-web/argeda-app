@@ -728,7 +728,8 @@ function bannerList() {
     { key: 'screen', img: 'img/banners/screen.jpg', kicker: 'Ремонт', h: 'Разбит экран?', p: svcLine(scr, 'Замена') },
     { key: 'battery', img: 'img/banners/battery.jpg', kicker: 'Ремонт', h: 'Быстро садится?', p: svcLine(bat, 'Замена аккумулятора') },
     remotes && { key: 'remotes', img: 'img/banners/remotes.jpg', kicker: 'Каталог', h: 'Пульты для любого ТВ', p: `${remotes.count.toLocaleString('ru-RU')} ${plural(remotes.count, 'модель', 'модели', 'моделей')} в каталоге` },
-    { key: 'pickup', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
+    { key: 'pickup', img: 'img/banners/pickup.jpg', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
+    { key: 'sellers', img: 'img/banners/sellers.jpg', kicker: 'Продавцам', h: 'Продавайте на ARGEDA', p: 'Свой магазин и пункты выдачи в Пушкино' },
   ].filter(Boolean);
 }
 let SRV_BANNERS = [];
@@ -1601,6 +1602,7 @@ const ACTIONS = {
     if (key === 'screen' || key === 'battery') { ui.prob = key; ui.svc = null; go('repair', null, { reset: true }); return; }
     if (key === 'remotes') { const c = cats().find(x => !x.parent_id && /пульт/i.test(x.name)); if (c) go('list', c.id); return; }
     if (key === 'pickup') ACTIONS.pickup();
+    if (key === 'sellers') openExternal('https://seller.argeda.ru/');
   },
   fltModel() { ui.flt.model = !ui.flt.model; render(true); },
   fltReset() { ui.flt = { model: false, today: false, pmin: '', pmax: '', brand: [] }; render(true); },
