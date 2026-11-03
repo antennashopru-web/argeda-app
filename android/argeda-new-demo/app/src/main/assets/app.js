@@ -6,8 +6,8 @@
 const A = window.Android || null;   // мост с Android; в обычном браузере его нет
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
-const VERSION = '1.14';
-const VERSION_CODE = 15;
+const VERSION = '1.15';
+const VERSION_CODE = 16;
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -709,7 +709,7 @@ function servicesFor(q) {
 function scard(s) {
   const badge = s.type === 'onsite' ? '<span class="sbadge out">Выезд мастера</span>' : s.type === 'both' ? '<span class="sbadge">Мастерская или выезд</span>' : '<span class="sbadge">В мастерской</span>';
   const ph = s.image ? `<span class="ph">${img(s.image)}</span>` : `<span class="ph si">${ic(svcIcon(s), BLUE, 24)}</span>`;
-  return `<button class="card srvc tap" data-a="service" data-x="${esc(s.id)}">${ph}<span class="mid"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.direction)}${s.duration ? ' · ' + esc(s.duration) : ''}</div>${badge}</span><span class="pr">от ${money(s.price_from)}</span></button>`;
+  return `<button class="card srvc tap" data-a="service" data-x="${esc(s.id)}">${ph}<span class="mid"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.direction)}${s.duration ? ' · ' + esc(s.duration) : ''}</div>${badge}<span class="pr">от ${money(s.price_from)}</span></span></button>`;
 }
 
 // Баннеры главной: фоны сделаны в Figma, тексты и цены — живые, с сервера
@@ -735,7 +735,7 @@ let SRV_BANNERS = [];
 const SHADE = 'linear-gradient(90deg, rgba(11,22,48,.96) 0%, rgba(11,22,48,.8) 46%, rgba(11,22,48,0) 80%)';
 function bannerHtml(b) {
   const bg = b.img ? `background-image:${SHADE},url('${esc(b.img)}');background-size:cover;background-position:right center`
-    : 'background-image:radial-gradient(120% 140% at 100% 0%, #3E8BF0 0%, #1668D9 38%, #0B1630 100%)';
+    : 'background-image:radial-gradient(120% 140% at 100% 0%, #3E8BF0 0%, #1668D9 38%, #0E2A47 100%)';
   const deco = b.img ? '' : `<span class="wm">${PETAL_SVG(150)}</span><span class="pin">${ic('pin', '#fff', 30)}</span>`;
   return `<button class="promo tap" data-a="banner" data-x="${esc(b.key)}" style="${bg}">${deco}<span class="pill glass">${esc(b.kicker)}</span><div class="h">${esc(b.h)}</div><div class="p">${esc(b.p)}</div></button>`;
 }
@@ -843,7 +843,7 @@ ${o.status === 'ready' && o.pickup_code ? `<span class="qrb">${ic('scan', '#fff'
       html: `<div class="mhead">
 <div class="mrow"><div class="mbrand">${logo(28)}<span>ARGEDA</span></div>
 <button class="maddr" data-a="pickup">${ic('pin', BLUE, 15)}<span>${esc(shortAddr())}</span>${ic('chev-r', GREY, 14)}</button>
-<button class="icon-btn mbell" data-a="bell" aria-label="Уведомления">${ic('bell', INK, 20)}</button></div>
+</div>
 <div class="search light msearch"><button style="display:contents" data-a="go" data-x="search|">${ic('search', '#8A93A6', 20)}<span>Товар, запчасть, услуга или модель</span></button>
 </div></div>
 <div class="scr mhome">
@@ -874,7 +874,7 @@ ${feedHtml()}</div>`,
       const rs = need('rs:', '/repair/services', 30 * MIN, true);
       body = rs ? rs.services.map(s => { const p = PROBS.find(x => x.id === s.problem) || PROBS[5];
         return `<button class="card svc tap" data-a="probSvc" data-x="${esc(s.problem)}|${esc(s.id)}"><span class="sq ${p.c}">${ic(p.icon, p.col, 22)}</span>
-<span><div class="n">${esc(s.name)}</div><div class="d">${esc(s.duration)} · платите после ремонта</div></span><span class="p">от ${money(s.price_from)}</span></button>`; }).join('')
+<span class="mid"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.duration)} · платите после ремонта</div><div class="p">от ${money(s.price_from)}</div></span></button>`; }).join('')
         : ERR['rs:'] ? errBox(errText('rs:'), 'rs:') : '<div class="loading">Загружаем услуги…</div>';
     }
     return {
@@ -964,7 +964,7 @@ ${L.total != null ? `<div class="lcount">${count(L.total)}</div>` : ''}${sub}<di
               : svc.items && svc.items.length ? `<div class="slist" style="margin-top:12px">${svc.items.map(scard).join('')}</div>`
                 : `<div class="empty"><div class="sq c-blue">${ic('wrench', BLUE, 32)}</div><h3>Услуг по запросу нет</h3><p>Опишите задачу — перезвоним и подскажем. Или выберите услугу в разделе «Ремонт».</p><button class="btn" data-a="nav" data-x="repair">${ic('wrench', '#fff', 18)}Все услуги</button><button class="btn outline" data-a="call">${ic('phone', INK, 18)}Позвонить</button></div>`;
           } else {
-            const sv = svc.items && svc.items.length ? `<div class="sec-h" style="margin:18px 20px 10px"><h3 style="font:700 18px 'Unbounded'">Услуги · ${svc.items.length}</h3>${svc.items.length > 3 ? `<button data-a="stab" data-x="services">Все</button>` : ''}</div><div class="slist">${svc.items.slice(0, 3).map(scard).join('')}</div>` : '';
+            const sv = svc.items && svc.items.length ? `<div class="sec-h" style="margin:18px 20px 10px"><h3 style="font:700 18px 'Manrope'">Услуги · ${svc.items.length}</h3>${svc.items.length > 3 ? `<button data-a="stab" data-x="services">Все</button>` : ''}</div><div class="slist">${svc.items.slice(0, 3).map(scard).join('')}</div>` : '';
             const pb = prodBlock();
             body = (sv + pb) || ((svc.loading || L.loading) ? `<div class="grid">${skelCards(4)}</div>` : empty);
           }
@@ -1265,7 +1265,7 @@ ${!rs && ERR[R.key] ? errBox(errText(R.key), R.key) : ''}
       : `<button class="promo prod tap" data-a="pickup" style="margin:12px 16px 0"><span class="im" style="background:rgba(255,255,255,.12)">${ic('truck', '#fff', 26)}</span><div class="tx"><div class="h">Бесплатный самовывоз</div><div class="p">${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${closeAt()}</div></div></button>`;
     return {
       tab: 'profile',
-      html: `<div class="scr light"><div class="phead"><div class="pname">${esc(name)}${S.user ? '' : ''}</div><button class="icon-btn" data-a="bell" aria-label="Уведомления">${ic('bell', INK, 22)}</button></div>
+      html: `<div class="scr light"><div class="phead"><div class="pname">${esc(name)}${S.user ? '' : ''}</div></div>
 <div class="psub">${esc(sub)}</div>
 <div class="pquick">${q3('user', S.user ? 'Мои данные' : 'Войти', S.user ? 'about' : 'login')}${q3('card', 'Оплата', 'payInfo')}${q3('zap', 'Настройки', 'go', 'settings|')}</div>
 <div class="walrow"><button class="wal tap" data-a="go" data-x="${active ? 'order|' + esc(active.key) : 'orders|'}"><div class="ws">Активных заказов</div><div class="wv">${orders.filter(o => !['done', 'cancelled'].includes(o.status)).length}</div><div class="wsub">${active ? esc(active.number) + ' · ' + esc(active.statusText.toLowerCase()) : 'нет'}</div></button></div>
