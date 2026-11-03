@@ -6,8 +6,8 @@
 const A = window.Android || null;   // мост с Android; в обычном браузере его нет
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
-const VERSION = '1.15';
-const VERSION_CODE = 16;
+// Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.17';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
