@@ -6,8 +6,8 @@
 const A = window.Android || null;   // мост с Android; в обычном браузере его нет
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
-const VERSION = '1.15';
-const VERSION_CODE = 16;
+// Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.17';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -725,11 +725,11 @@ function bannerList() {
   const scr = svcOf('screen'), bat = svcOf('battery');
   const svcLine = (s, what) => s ? `${what} ${durText(s)} · от ${money(s.price_from)}` : 'Запишитесь — платите после ремонта';
   return [
+    { key: 'pickup', img: 'img/banners/pickup.jpg', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
+    { key: 'sellers', img: 'img/banners/sellers.jpg', kicker: 'Продавцам', h: 'Продавайте на ARGEDA', p: 'Свой магазин и пункты выдачи в Пушкино' },
     { key: 'screen', img: 'img/banners/screen.jpg', kicker: 'Ремонт', h: 'Разбит экран?', p: svcLine(scr, 'Замена') },
     { key: 'battery', img: 'img/banners/battery.jpg', kicker: 'Ремонт', h: 'Быстро садится?', p: svcLine(bat, 'Замена аккумулятора') },
     remotes && { key: 'remotes', img: 'img/banners/remotes.jpg', kicker: 'Каталог', h: 'Пульты для любого ТВ', p: `${remotes.count.toLocaleString('ru-RU')} ${plural(remotes.count, 'модель', 'модели', 'моделей')} в каталоге` },
-    { key: 'pickup', img: 'img/banners/pickup.jpg', kicker: 'Самовывоз', h: 'Бесплатно в любом пункте', p: `${points().length} ${plural(points().length, 'пункт', 'пункта', 'пунктов')} в Пушкино · ${latestClose()}` },
-    { key: 'sellers', img: 'img/banners/sellers.jpg', kicker: 'Продавцам', h: 'Продавайте на ARGEDA', p: 'Свой магазин и пункты выдачи в Пушкино' },
   ].filter(Boolean);
 }
 let SRV_BANNERS = [];
