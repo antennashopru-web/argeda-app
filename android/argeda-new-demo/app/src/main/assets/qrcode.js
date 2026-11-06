@@ -153,7 +153,7 @@
     const { modules } = qrMatrix(text), n = modules.length, q = 2, k = px / (n + q * 2);
     let d = '';
     modules.forEach((row, y) => row.forEach((on, x) => { if (on) d += `M${((x + q) * k).toFixed(2)} ${((y + q) * k).toFixed(2)}h${k.toFixed(2)}v${k.toFixed(2)}h-${k.toFixed(2)}z`; }));
-    return `<svg width="${px}" height="${px}" viewBox="0 0 ${px} ${px}" role="img" aria-label="QR-код"><rect width="${px}" height="${px}" fill="#fff"/><path d="${d}" fill="${color || '#0B1630'}"/></svg>`;
+    return `<svg width="${px}" height="${px}" viewBox="0 0 ${px} ${px}" role="img" aria-label="QR-код"><rect width="${px}" height="${px}" fill="#fff"/><path d="${d}" fill="${color || '#0E2A47'}"/></svg>`;
   }
 
   window.QR = { qrMatrix, qrSvg };
