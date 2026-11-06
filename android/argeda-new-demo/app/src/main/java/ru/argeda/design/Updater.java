@@ -43,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 final class Updater {
     private static final String PREFS = "updater";
     private static final long CHECK_EVERY = 4 * 60 * 60 * 1000L;   // не чаще раза в 4 часа
+    private static final long RETRY_IN = 5 * 60 * 1000L;          // не вышло — пробуем снова через 5 минут
     private static final long LATER_FOR = 24 * 60 * 60 * 1000L;    // «Позже» действует сутки
     private static final String APK_MIME = "application/vnd.android.package-archive";
 
@@ -68,11 +69,14 @@ final class Updater {
         final SharedPreferences p = a.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
         if (!manual && now - p.getLong("checked_at", 0) < CHECK_EVERY) return;
-        p.edit().putLong("checked_at", now).apply();
+        // Пока идёт проверка (и если она не удастся) — повтор не раньше чем через 5 минут, чтобы не открыть два окна
+        p.edit().putLong("checked_at", now - CHECK_EVERY + RETRY_IN).apply();
         new Thread(new Runnable() {
             @Override
             public void run() {
                 final JSONObject info = fetch(versionsUrl, key, auth);
+                // Файл версий прочитали — следующая проверка через 4 часа; не вышло (нет интернета) — через 5 минут
+                if (info != null) p.edit().putLong("checked_at", System.currentTimeMillis()).apply();
                 a.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

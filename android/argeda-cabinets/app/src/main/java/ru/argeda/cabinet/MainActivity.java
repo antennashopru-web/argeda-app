@@ -42,7 +42,6 @@ import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -52,12 +51,6 @@ import java.util.Locale;
  */
 public class MainActivity extends Activity {
 
-    // Эти адреса открываем в их приложениях: мессенджеры, маркетплейсы, карты, банки
-    private static final List<String> EXTERNAL = Arrays.asList(
-            "t.me", "telegram.me", "wa.me", "whatsapp.com", "vk.com", "vk.ru", "ok.ru",
-            "youtube.com", "youtu.be", "rutube.ru", "dzen.ru", "wildberries.ru", "ozon.ru",
-            "market.yandex.ru", "avito.ru", "play.google.com", "rustore.ru", "2gis.ru",
-            "maps.yandex.ru", "qr.nspk.ru", "figma.com");
     private static final int REQ_FILE = 1;
     private static final int REQ_CAMERA = 2;
     private static final int REQ_NOTIFY = 3;
@@ -112,27 +105,19 @@ public class MainActivity extends Activity {
             String link = siteLink(getIntent());
             web.loadUrl(link != null ? link : Links.HOME);
         }
+        // Раньше копии хранили пароль сайта-копии для обновлений — теперь он не нужен, стираем
+        getSharedPreferences("site", MODE_PRIVATE).edit().remove("auth").apply();
         Notifier.ensureChannels(this);
         askNotifications();
         BadgeJobService.schedule(this);
         checkUpdate();
     }
 
-    // Файл версий на сайте: живые приложения смотрят argeda.ru, копии — kopiya.argeda.ru (ключ «кабинет-kopiya»)
+    // Живые кабинеты и копии обновляются из последнего релиза GitHub; у копий свой ключ в version.json («seller-kopiya» и т. п.)
     private void checkUpdate() {
-        // Живые кабинеты обновляются из последнего релиза GitHub, копии — с kopiya.argeda.ru/app/
-        String url = BuildConfig.KOPIYA ? "https://kopiya.argeda.ru/app/version.json" : "https://github.com/antennashopru-web/argeda-app/releases/latest/download/version.json";
+        String url = "https://github.com/antennashopru-web/argeda-app/releases/latest/download/version.json";
         String key = BuildConfig.CABINET + (BuildConfig.KOPIYA ? "-kopiya" : "");
-        // Копия закрыта HTTP-паролем сайта: файл версий и APK качаем с тем же паролем, что ввели в кабинете
-        String auth = BuildConfig.KOPIYA ? getSharedPreferences("site", MODE_PRIVATE).getString("auth", null) : null;
-        Updater.checkQuietly(this, url, key, BuildConfig.VERSION_CODE, auth);
-    }
-
-    /** Пароль сайта-копии (не кабинета) — для проверки обновлений и скачивания APK с копии. */
-    private void rememberSiteAuth(String user, String pass) {
-        if (!BuildConfig.KOPIYA || user == null || user.isEmpty()) return;
-        String token = android.util.Base64.encodeToString((user + ":" + pass).getBytes(java.nio.charset.StandardCharsets.UTF_8), android.util.Base64.NO_WRAP);
-        getSharedPreferences("site", MODE_PRIVATE).edit().putString("auth", "Basic " + token).apply();
+        Updater.checkQuietly(this, url, key, BuildConfig.VERSION_CODE);
     }
 
     @Override
@@ -170,7 +155,8 @@ public class MainActivity extends Activity {
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
-        cookies.setAcceptThirdPartyCookies(web, true);
+        // Сторонние cookie кабинету не нужны: внутри открываются только страницы *.argeda.ru
+        cookies.setAcceptThirdPartyCookies(web, false);
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -215,7 +201,6 @@ public class MainActivity extends Activity {
                 }
                 String[] saved = view.getHttpAuthUsernamePassword(host, realm);
                 if (saved != null && saved.length == 2 && saved[0] != null && handler.useHttpAuthUsernamePassword()) {
-                    rememberSiteAuth(saved[0], saved[1]);
                     handler.proceed(saved[0], saved[1]);
                     return;
                 }
@@ -356,8 +341,10 @@ public class MainActivity extends Activity {
             return true;
         }
         if (scheme.equals("http") || scheme.equals("https")) {
-            // Свои сайты (кабинет, магазин, страница товара) остаются внутри
-            if (isOurs(host) || !opensOutside(host, uri.getPath())) return false;
+            // Внутри кабинета — только свои сайты (*.argeda.ru). Любая чужая ссылка (из чата, письма, карточки)
+            // открывается в браузере телефона или своём приложении: чужая страница не должна выглядеть как кабинет
+            // и не получает доступ к мосту приложения.
+            if (isOurs(host)) return false;
             openExternal(uri);
             return true;
         }
@@ -371,14 +358,6 @@ public class MainActivity extends Activity {
 
     private static boolean isOurs(String host) {
         return host.equals(Links.SITE) || host.endsWith("." + Links.SITE);
-    }
-
-    private static boolean opensOutside(String host, String path) {
-        for (String domain : EXTERNAL) {
-            if (host.equals(domain) || host.endsWith("." + domain)) return true;
-        }
-        boolean yandex = host.equals("yandex.ru") || host.endsWith(".yandex.ru");
-        return yandex && path != null && (path.startsWith("/maps") || path.startsWith("/navi"));
     }
 
     private void openExternal(Uri uri) {
@@ -475,7 +454,6 @@ public class MainActivity extends Activity {
                     public void onClick(DialogInterface d, int w) {
                         String u = user.getText().toString(), p = pass.getText().toString();
                         view.setHttpAuthUsernamePassword(host, realm, u, p);
-                        rememberSiteAuth(u, p);
                         handler.proceed(u, p);
                     }
                 })

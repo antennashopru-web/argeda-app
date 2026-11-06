@@ -7,7 +7,7 @@ const A = window.Android || null;   // мост с Android; в обычном б
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
 // Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
-const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.17';
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.18';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -765,8 +765,11 @@ const filtersOn = () => !!cfg().features.filters;
 // Онлайн-оплата: включает сервер (features.online_payment). В тестовой сборке показываем для предпросмотра (демо).
 const payOn = () => !!cfg().features.online_payment;
 const payShow = () => payOn() || S.test;
-// Выбранный способ: явный выбор покупателя или по умолчанию онлайн, когда сервер его поддерживает
-const effPay = () => (S.pay === 'online' || S.pay === 'on_receipt') ? S.pay : (payOn() ? 'online' : 'on_receipt');
+// Правило магазина: товары — только онлайн-оплата при оформлении. «При получении» для товаров нет.
+// Ремонт оплачивается после работы — это запись, а не заказ, сюда не относится.
+const effPay = () => 'online';
+// Онлайн-оплата выключена на сервере (или сервер не ответил) — заказ не оформляем, просим позвонить
+const payBlocked = () => !payShow();
 // Запрос ссылки на оплату уже созданного заказа и открытие её в браузере телефона
 async function startPay(key) {
   const o = allOrders().find(x => x.key === key);
@@ -1112,10 +1115,10 @@ ${full && full.category_id ? strip('Похожие товары', notThis(simila
     const delivery = !pickup && t ? (t.delivery ? money(t.delivery) : 'Уточним при звонке') : pickup ? 'Бесплатно' : '—';
     const total = nSel ? (t ? t.total : localGoods) : 0;
     const state = !nSel ? '' : qd ? '' : ERR.quote ? `<div class="warn box">${esc(errText('quote'))} Показаны цены, сохранённые на телефоне.</div>` : '<div class="lcount">Сверяем цены и наличие…</div>';
-    const payMethod = payShow() ? effPay() : 'on_receipt';
-    const payBlock = payShow() ? `<div class="sec-h"><h3>Оплата</h3></div>
-<div class="opts"><button class="opt${payMethod === 'online' ? ' on' : ''}" data-a="pay" data-x="online"><span class="sq c-blue" style="width:38px;height:38px">${ic('card', BLUE, 20)}</span><div class="t">Онлайн${!payOn() && S.test ? ' · демо' : ''}</div><div class="s">Картой или СБП — спишется сейчас</div></button>
-<button class="opt${payMethod === 'on_receipt' ? ' on' : ''}" data-a="pay" data-x="on_receipt"><span class="sq c-green" style="width:38px;height:38px">${ic('store', GREEN, 20)}</span><div class="t">При получении</div><div class="s">Картой или наличными</div></button></div>` : '';
+    const payMethod = 'online', blocked = payBlocked();
+    const payBlock = blocked ? `<div class="warn box">Онлайн-оплата временно недоступна, поэтому оформить заказ в приложении сейчас нельзя. Позвоните нам — оформим по телефону: <button class="linkb" data-a="call">${esc(fmtPhone(cfg().phone))}</button></div>`
+      : `<div class="sec-h"><h3>Оплата</h3></div>
+<div class="opts"><button class="opt on" data-a="pay" data-x="online"><span class="sq c-blue" style="width:38px;height:38px">${ic('card', BLUE, 20)}</span><div class="t">Онлайн${!payOn() && S.test ? ' · демо' : ''}</div><div class="s">Картой или СБП — при оформлении</div></button></div>`;
     return {
       html: `<div class="scr light nodock">${header('Корзина')}
 ${master}${lines}${state}
@@ -1127,9 +1130,9 @@ ${payBlock}
 <div class="card summary"><div class="r">Товары, ${n}&nbsp;шт.<b>${money(nSel ? (t ? t.goods : localGoods) : 0)}</b></div>${t && t.services ? `<div class="r">Установка<b>${money(t.services)}</b></div>` : ''}
 <div class="r">${pickup ? 'Самовывоз' : 'Доставка'}<b${pickup ? ' class="free"' : ''}>${nSel ? delivery : '—'}</b></div>
 <div class="r tot">Итого<b>${money(total)}</b></div></div>
-<p class="note">${payMethod === 'online' ? 'Оплата онлайн — картой или СБП, на защищённой странице банка. Неоплаченный заказ отменяется через 30 минут. ' : 'Оплата при получении — картой или наличными. '}Цены и итог подтверждает магазин.</p>
+<p class="note">${blocked ? '' : 'Оплата онлайн — картой или СБП, на защищённой странице банка. Неоплаченный заказ отменяется через 30 минут. '}Цены и итог подтверждает магазин.</p>
 ${pq ? strip('Пригодится к заказу', extraItems, { cls: 'more-h', sub: 'Для той же модели телефона' }) : ''}</div>
-<div class="bbar"><button class="btn" data-a="checkout" ${nSel && qd && qd.lines.length ? '' : 'disabled'}>${nSel ? (payMethod === 'online' ? `Перейти к оплате · ${money(total)}` : `К оформлению · ${money(total)}`) : 'Выберите товары'}</button></div>`,
+<div class="bbar"><button class="btn" data-a="checkout" ${nSel && qd && qd.lines.length && !blocked ? '' : 'disabled'}>${!nSel ? 'Выберите товары' : blocked ? 'Оплата временно недоступна' : `Перейти к оплате · ${money(total)}`}</button></div>`,
       after() {
         const a = $('#addr');
         if (a) a.addEventListener('change', () => { S.courierAddr = a.value; S.payKey = ''; save(); refresh(); });
@@ -1480,12 +1483,13 @@ const ACTIONS = {
     toast('Корзина очищена', 'Вернуть', () => { S.cart = before; save(); refresh(); });
   },
   delivery(x) { S.delivery = x; S.payKey = ''; save(); refresh(); },
-  pay(x) { S.pay = x; S.payKey = ''; save(); refresh(); },
+  pay() { S.pay = 'online'; save(); },
   checkout() {
     if (needNet('Оформить заказ')) return;
+    if (payBlocked()) { toast('Онлайн-оплата временно недоступна — позвоните нам, оформим заказ по телефону'); return; }
     if (S.delivery === 'courier' && !S.courierAddr.trim()) { toast('Укажите адрес доставки'); const a = $('#addr'); if (a) a.focus(); return; }
     const q = MEM.quote && MEM.quote.data, t = q ? q.totals : { total: 0 };
-    const online = payShow() && effPay() === 'online';
+    const online = true; // товары — только онлайн-оплата
     contactSheet({
       title: 'Подтвердите заказ',
       text: `${money(t.total)} · ${S.delivery === 'pickup' ? 'самовывоз: пункт ' + esc(curPoint().name) + ', ' + esc(shortAddr()) : 'курьер: ' + esc(S.courierAddr)}. ${online ? 'Оплата онлайн — картой или СБП, заказ держим 30 минут до оплаты.' : 'Оплата при получении — картой или наличными.'}`,

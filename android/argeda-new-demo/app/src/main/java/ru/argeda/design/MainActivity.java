@@ -54,10 +54,11 @@ public class MainActivity extends Activity {
         web = findViewById(R.id.web);
         drawBehindSystemBars();
         setupWebView();
-        // После обновления приложения WebView мог держать в кэше старые app.js/app.css — сбрасываем кэш один раз на новую версию
+        // Свои экраны (app.js, app.css) отдаются с запретом кэша (см. shouldInterceptRequest), поэтому после обновления
+        // старый вид не покажется, а кэш картинок товаров для работы без интернета сохраняется. На новой версии
+        // только не восстанавливаем прошлое окно — открываем приложение заново.
         android.content.SharedPreferences vp = getSharedPreferences("argeda_ver", MODE_PRIVATE);
         if (vp.getInt("code", 0) != BuildConfig.VERSION_CODE) {
-            web.clearCache(true);
             vp.edit().putInt("code", BuildConfig.VERSION_CODE).apply();
             state = null;
         }
@@ -132,8 +133,10 @@ public class MainActivity extends Activity {
                 if (!HOST.equals(uri.getHost())) return null;
                 String path = uri.getPath() == null || uri.getPath().equals("/") ? "index.html" : uri.getPath().substring(1);
                 try {
+                    java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
+                    headers.put("Cache-Control", "no-store"); // свои файлы всегда свежие из APK
                     return new WebResourceResponse(mime(path), mime(path).startsWith("text") || path.endsWith(".js") ? "utf-8" : null,
-                            getAssets().open(path));
+                            200, "OK", headers, getAssets().open(path));
                 } catch (IOException e) {
                     return new WebResourceResponse("text/plain", "utf-8", 404, "Not found", null, null);
                 }
