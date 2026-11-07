@@ -101,16 +101,29 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Покупательское $(v "$BUYER") (код $(c "$BUYER")), кабинеты $(v "$CABINETS") (код $(c "$CABINETS"))"
 
+      - name: Версия поднята? (релиз с таким номером не перезаписываем)
+        if: steps.key.outputs.signed == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.release))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.ver.outputs.buyer }}-c${{ steps.ver.outputs.cab }}
+        run: |
+          # Релиз с этим номером уже есть: телефоны не узнают о новых файлах (версия та же), а старые файлы подменятся.
+          # Поэтому сборка останавливается — поднимите versionCode/versionName в build.gradle.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Релиз $TAG уже есть. Поднимите версию в build.gradle (покупательское и/или кабинеты), иначе телефоны не получат обновление."
+            exit 1
+          fi
+          echo "Релиза $TAG ещё нет — собираем"
+
       - name: Покупательское приложение
         run: |
           cd "$BUYER" && chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
 
-      - name: Кабинеты (продавец, пункт, курьер, админ)
+      - name: Кабинеты (продавец, пункт, курьер, админ) и Песочница
         run: |
           cd "$CABINETS" && chmod +x gradlew
-          ./gradlew --no-daemon assembleSellerLiveRelease assemblePvzLiveRelease assembleCourierLiveRelease assembleAdminLiveRelease \
-            assembleSellerKopiyaRelease assemblePvzKopiyaRelease assembleCourierKopiyaRelease assembleAdminKopiyaRelease
+          ./gradlew --no-daemon assembleSellerRelease assemblePvzRelease assembleCourierRelease assembleAdminRelease assembleSandboxRelease
 
       - name: Собрать файлы и проверить
         id: out
@@ -127,10 +140,8 @@ jobs:
           # Подписанный файл, а без ключа — неподписанный (app-release-unsigned.apk)
           pick() { f=$(ls "$1"/*.apk | grep -v unsigned | head -1); [ -n "$f" ] || f=$(ls "$1"/*.apk | head -1); echo "$f"; }
           cp "$(pick "$BUYER/app/build/outputs/apk/release")" out/argeda.apk
-          for cab in seller pvz courier admin; do
-            cp "$(pick "$CABINETS/app/build/outputs/apk/${cab}Live/release")" "out/argeda-$cab.apk"
-            # Копии кабинетов (для kopiya.argeda.ru) — тоже здесь, чтобы обновлялись сами
-            cp "$(pick "$CABINETS/app/build/outputs/apk/${cab}Kopiya/release")" "out/argeda-$cab-kopiya.apk"
+          for cab in seller pvz courier admin sandbox; do
+            cp "$(pick "$CABINETS/app/build/outputs/apk/$cab/release")" "out/argeda-$cab.apk"
           done
           # Обязательное обновление (галочка при ручном запуске): версии ниже новой не смогут отложить обновление
           if [ "$OBYAZ" = "true" ]; then BMIN=$BUYER_CODE; CMIN=$CAB_CODE; else BMIN=0; CMIN=0; fi
@@ -148,10 +159,7 @@ jobs:
             "pvz":     { "code": $CAB_CODE, "name": "$CAB_VER", "min": $CMIN, "url": "$D/argeda-pvz.apk" },
             "courier": { "code": $CAB_CODE, "name": "$CAB_VER", "min": $CMIN, "url": "$D/argeda-courier.apk" },
             "admin":   { "code": $CAB_CODE, "name": "$CAB_VER", "min": $CMIN, "url": "$D/argeda-admin.apk" },
-            "seller-kopiya":  { "code": $CAB_CODE, "name": "$CAB_VER-kopiya", "min": $CMIN, "url": "$D/argeda-seller-kopiya.apk" },
-            "pvz-kopiya":     { "code": $CAB_CODE, "name": "$CAB_VER-kopiya", "min": $CMIN, "url": "$D/argeda-pvz-kopiya.apk" },
-            "courier-kopiya": { "code": $CAB_CODE, "name": "$CAB_VER-kopiya", "min": $CMIN, "url": "$D/argeda-courier-kopiya.apk" },
-            "admin-kopiya":   { "code": $CAB_CODE, "name": "$CAB_VER-kopiya", "min": $CMIN, "url": "$D/argeda-admin-kopiya.apk" }
+            "sandbox": { "code": $CAB_CODE, "name": "$CAB_VER", "min": $CMIN, "url": "$D/argeda-sandbox.apk" }
           }
           JSON
           python3 -c 'import json,sys; json.load(open("out/version.json"))'
@@ -177,7 +185,7 @@ jobs:
             |---|---|---|
             | argeda.apk — покупательское | ${{ steps.ver.outputs.buyer }} | ${{ steps.ver.outputs.buyer_code }} |
             | argeda-seller.apk, argeda-pvz.apk, argeda-courier.apk, argeda-admin.apk — кабинеты | ${{ steps.ver.outputs.cab }} | ${{ steps.ver.outputs.cab_code }} |
-            | argeda-…-kopiya.apk — кабинеты для копии сайта kopiya.argeda.ru | ${{ steps.ver.outputs.cab }} | ${{ steps.ver.outputs.cab_code }} |
+            | argeda-sandbox.apk — Песочница: покупатель и все кабинеты на копии сайта kopiya.argeda.ru | ${{ steps.ver.outputs.cab }} | ${{ steps.ver.outputs.cab_code }} |
 
             Приложения обновляются сами из этого релиза (ссылки `releases/latest/download/…`). Подробно — `docs/avtoobnovlenie.md`.
           files: out/*

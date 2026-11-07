@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- app_name задаёт разновидность сборки (seller, pvz, courier, admin) -->
-    <string name="offline_title">Нет связи с кабинетом</string>
-    <string name="offline_text">Проверьте интернет и попробуйте ещё раз</string>
+    <string name="offline_title">Сервер ARGEDA временно недоступен</string>
+    <string name="offline_text">Интернет у телефона есть, это сайт не отвечает. Мы уже чиним — кабинет откроется сам, как только сервер заработает. Срочные вопросы: +7 993 900-00-77</string>
     <string name="retry">Повторить</string>
     <string name="offline_title_net">Нет интернета</string>
     <string name="offline_text_net">Как только связь появится, кабинет откроется сам. Страницы, которые вы уже открывали, доступны и без сети.</string>
@@ -24,6 +24,18 @@
     <string name="http_auth_ok">Войти</string>
     <string name="http_auth_cancel">Отмена</string>
 
+    <!-- Песочница -->
+    <string name="sandbox_bar">ПЕСОЧНИЦА · %1$s · сменить роль ▾</string>
+    <string name="sandbox_pick">Песочница: кем зайти?</string>
+    <string name="sandbox_role_buyer">Покупатель</string>
+    <string name="sandbox_role_seller">Продавец</string>
+    <string name="sandbox_role_pvz">Пункт выдачи</string>
+    <string name="sandbox_role_courier">Курьер</string>
+    <string name="sandbox_role_admin">Админ</string>
+    <string name="sandbox_signout">Выйти из аккаунта на копии</string>
+    <string name="sandbox_note">Всё здесь — на копии сайта kopiya.argeda.ru. Живой магазин не меняется.</string>
+    <string name="sandbox_live_blocked">В Песочнице живой сайт не открывается — только копия</string>
+
     <string name="ch_orders">Заказы и выдача</string>
     <string name="ch_chat">Сообщения</string>
     <string name="ch_other">Остальное</string>
@@ -37,7 +49,7 @@
     <string name="upd_later">Позже</string>
     <string name="upd_downloading">ARGEDA %1$s — обновление</string>
     <string name="upd_started">Скачиваю обновление… Когда загрузится, откроется установщик</string>
-    <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже или скачайте с argeda.ru/app</string>
+    <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже: приложение предложит его снова</string>
     <string name="upd_open_failed">Не удалось открыть установщик. Файл обновления лежит в «Загрузках»</string>
     <string name="upd_check_failed">Не удалось проверить обновления. Проверьте интернет</string>
     <string name="upd_latest">У вас последняя версия</string>

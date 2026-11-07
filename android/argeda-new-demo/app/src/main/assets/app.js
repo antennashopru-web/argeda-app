@@ -7,7 +7,7 @@ const A = window.Android || null;   // мост с Android; в обычном б
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
 // Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
-const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.18';
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.19';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -92,7 +92,7 @@ async function api(path, opts = {}) {
     r = await fetch(API + path, { method: opts.method || (opts.body ? 'POST' : 'GET'), headers, body: opts.body ? JSON.stringify(opts.body) : undefined, signal: ctrl.signal });
   } catch (e) {
     wentOffline();
-    const err = new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.'); err.offline = true; throw err;
+    const err = new Error(phoneOnline() ? 'Сервер ARGEDA временно не отвечает. Попробуйте чуть позже или позвоните ' + fmtPhone(cfg().phone) + '.' : 'Нет интернета. Проверьте связь и попробуйте ещё раз.'); err.offline = true; throw err;
   } finally { clearTimeout(timer); }
   cameOnline();
   const data = await r.json().catch(() => null);
@@ -109,7 +109,14 @@ async function api(path, opts = {}) {
 // Связь вернулась (ответил любой запрос, событие online или удачная проверка) — плашка уходит, данные обновляются,
 // отложенные действия (избранное, корзина) досылаются.
 const NET = { online: !(A && A.isOnline && !A.isOnline()) && navigator.onLine !== false, timer: null };
-function showNet() { const n = $('#net'); if (n) n.classList.toggle('show', !NET.online); }
+// Есть ли интернет у самого телефона. Если есть, а сервер не отвечает — значит, лежит сервер, а не телефон
+function phoneOnline() { try { if (A && A.isOnline) return !!A.isOnline(); } catch (e) { /* ниже запасной вариант */ } return navigator.onLine !== false; }
+function showNet() {
+  const n = $('#net'); if (!n) return;
+  n.classList.toggle('show', !NET.online);
+  const t = n.querySelector('span');
+  if (t) t.textContent = phoneOnline() ? 'Сервер ARGEDA временно недоступен — показываем сохранённое' : 'Нет интернета — показываем сохранённое';
+}
 function wentOffline() {
   if (!NET.online) return;
   NET.online = false; showNet();
@@ -129,7 +136,11 @@ function netPing() { api('/config', { timeout: 8000 }).then(d => { if (d) { MEM.
 window.addEventListener('offline', wentOffline);
 window.addEventListener('online', () => { netPing(); });
 // Оформление, запись и оплата без сети невозможны — говорим сразу, а не после ошибки
-function needNet(what) { if (NET.online) return false; toast((what || 'Это') + ' получится, когда появится интернет'); return true; }
+function needNet(what) {
+  if (NET.online) return false;
+  toast(phoneOnline() ? (what || 'Это') + ' получится, когда сервер ARGEDA снова заработает. Срочно — позвоните ' + fmtPhone(cfg().phone) : (what || 'Это') + ' получится, когда появится интернет');
+  return true;
+}
 
 // Данные для экранов: отдаём то, что уже есть (из памяти или сохранённое на телефоне),
 // а свежие подгружаем; когда пришли — перерисовываем экран, если он их показывает
@@ -1236,7 +1247,7 @@ ${items}</div>`,
     const svcList = cur.length > 1 ? `<div class="card svcs">${cur.map(s => `<button class="sv${s.id === ui.svc ? ' on' : ''}" data-a="svc" data-x="${esc(s.id)}"><span class="rd"></span><span style="flex:1"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.duration)}</div></span><b>от ${money(s.price_from)}</b></button>`).join('')}</div>` : '';
     const dchips = days.map((d, i) => `<button class="chip${i === ui.day ? ' on' : ''}" style="height:54px" data-a="day" data-x="${i}">${d.label}<small>${d.small}</small></button>`).join('');
     const tchips = !sl ? (ERR['slots:' + date] ? `<div class="muted">${esc(errText('slots:' + date))}</div>` : '<div class="muted">Смотрим свободное время…</div>')
-      : slots.length ? slots.map(t => `<button class="chip${t === ui.time ? ' on' : ''}" data-a="time" data-x="${t}">${t}</button>`).join('')
+      : slots.length ? slots.map(t => `<button class="chip${t === ui.time ? ' on' : ''}" data-a="time" data-x="${esc(t)}">${esc(t)}</button>`).join('')
         : '<div class="muted">На этот день свободного времени нет — выберите другой</div>';
     return {
       tab: 'repair',
@@ -1416,6 +1427,8 @@ function loginSheet() {
       const btn = $('#lOk'); btn.disabled = true; btn.textContent = 'Проверяем…'; err.classList.remove('show');
       try {
         const r = await api('/auth/login', { body: { phone: e164(lp.value), password: pw.value, device: deviceModel() } });
+        // Заказы прошлого аккаунта не должны мелькнуть у нового — стираем сохранённое
+        Object.keys(DISK).forEach(k => { if (k.startsWith('my-') || k.startsWith('o:')) delete DISK[k]; }); saveDisk();
         S.phone = maskPhone(lp.value); S.token = r.token; S.user = r.user; save(); forget('my-'); forget('o:'); pullShared(true);
         closeSheet(); toast('Вы вошли — заказы с сайта появятся в «Мои заказы»'); render(true);
       } catch (e) {
@@ -1654,7 +1667,11 @@ ${more ? `<button class="tgrow${f.today ? ' on' : ''}" id="fT"><span class="sq c
   login() { loginSheet(); },
   logout() {
     api('/auth/logout', { method: 'POST' }).catch(() => {});
-    S.token = ''; S.user = null; save(); forget('my-'); render(true); toast('Вы вышли');
+    // Выход стирает с телефона личное: заказы и записи с сайта, имя, почту, телефон и адрес доставки.
+    // Корзина, избранное и настройки остаются — следующий человек не увидит чужих заказов и контактов
+    S.token = ''; S.user = null; S.name = ''; S.email = ''; S.phone = ''; S.courierAddr = ''; S.payKey = '';
+    Object.keys(DISK).forEach(k => { if (k.startsWith('my-') || k.startsWith('o:')) delete DISK[k]; }); saveDisk();
+    save(); forget('my-'); forget('o:'); render(true); toast('Вы вышли — личные данные убраны с телефона');
   },
   testMode() {
     S.test = !S.test; save(); forget('my-'); refresh();
