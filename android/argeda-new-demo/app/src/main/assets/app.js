@@ -7,7 +7,7 @@ const A = window.Android || null;   // мост с Android; в обычном б
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
 // Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
-const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.20';
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.21';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -1333,6 +1333,7 @@ ${grp('Пункт и доставка', nav('pin', 'Пункты выдачи', 
 <div class="gtitle">Приложение</div><div class="card menu glist">${themeSeg}${tgl('bell', 'Вибрация', 'Отклик на важные события', S.vibro !== false, 'vibro')}</div>
 ${TEST_BUILD ? `<div class="gtitle">Тестовая сборка</div><div class="card menu glist">${tgl('shield', 'Тестовый режим', 'Заказы с пометкой «тест», в магазин не уходят', S.test, 'testMode')}</div>` : ''}
 <div style="margin:22px 20px 0">${S.user ? `<button class="btn outline" data-a="logout">Выйти из профиля</button>` : `<button class="btn dark" data-a="login">Войти как на сайте</button>`}</div>
+${S.user ? `<div style="margin:12px 20px 0"><button class="btn outline danger" data-a="delAccount">${ic('trash', CORAL, 18)}Удалить аккаунт</button></div>` : ''}
 <div style="margin:16px 20px 0"><button class="btn outline" data-a="about">${ic('help', INK, 18)}О приложении ${VERSION}</button></div>
 ${A && A.checkUpdate ? `<div style="margin:12px 20px 0"><button class="btn outline" data-a="checkUpdate">${ic('zap', INK, 18)}Проверить обновления</button></div>` : ''}</div>`,
     };
@@ -1689,7 +1690,7 @@ ${more ? `<button class="tgrow${f.today ? ' on' : ''}" id="fT"><span class="sq c
   },
   setTheme(k) { S.theme = k; save(); applyTheme(); refresh(); },
   vibro() { S.vibro = S.vibro === false; save(); refresh(); if (S.vibro) buzz(); toast(S.vibro ? 'Вибрация включена' : 'Вибрация выключена'); },
-  payInfo() { openSheet(`<div class="big c-green">${ic('card', GREEN, 30)}</div><h2>Оплата</h2><p>${payOn() ? 'Онлайн — картой или СБП на защищённой странице банка при оформлении. Либо при получении: картой или наличными в пункте выдачи, курьеру или мастеру.' : 'Сейчас — при получении: картой или наличными в пункте выдачи, курьеру или мастеру. Онлайн-оплата картой и СБП появится позже.'}</p><button class="btn dark" data-a="closeSheet">Понятно</button>`); },
+  payInfo() { openSheet(`<div class="big c-green">${ic('card', GREEN, 30)}</div><h2>Оплата</h2><p>${payOn() ? 'Товары — только онлайн при оформлении: картой или СБП на защищённой странице банка. Неоплаченный заказ отменяется через 30 минут. Ремонт оплачивается мастеру после работы.' : 'Онлайн-оплата сейчас временно недоступна, поэтому оформить заказ товаров в приложении нельзя — позвоните нам, поможем. Ремонт оплачивается мастеру после работы.'}</p><button class="btn dark" data-a="closeSheet">Понятно</button>`); },
   login() { loginSheet(); },
   logout() {
     api('/auth/logout', { method: 'POST' }).catch(() => {});
@@ -1698,6 +1699,30 @@ ${more ? `<button class="tgrow${f.today ? ' on' : ''}" id="fT"><span class="sq c
     S.token = ''; S.user = null; S.name = ''; S.email = ''; S.phone = ''; S.courierAddr = ''; S.payKey = '';
     Object.keys(DISK).forEach(k => { if (k.startsWith('my-') || k.startsWith('o:')) delete DISK[k]; }); saveDisk();
     save(); forget('my-'); forget('o:'); render(true); toast('Вы вышли — личные данные убраны с телефона');
+  },
+  // Удаление аккаунта (требование RuStore / Google Play и 152-ФЗ): сервер удаляет учётку и личные данные,
+  // заказы остаются в магазине обезличенными — их требует закон о бухучёте и кассах
+  delAccount() {
+    openSheet(`<div class="big c-coral">${ic('trash', CORAL, 30)}</div><h2>Удалить аккаунт?</h2><p>Удалим вашу учётную запись ARGEDA и личные данные: имя, телефон, почту, адреса, избранное. Войти с этим номером и паролем больше не получится — ни в приложении, ни на argeda.ru.<br><br>Заказы останутся в магазине без ваших данных: их требует хранить закон. Действующие заказы сначала заберите или отмените.</p>
+<button class="btn danger" data-a="delAccountYes">Удалить навсегда</button><button class="btn outline" data-a="closeSheet" style="margin-top:10px">Не удалять</button>`);
+  },
+  async delAccountYes() {
+    try {
+      await api('/me', { method: 'DELETE', timeout: 20000 });
+    } catch (e) {
+      if (e.offline) { toast(e.message); return; }
+      if (e.status === 404 || e.status === 405 || e.status === 501) {
+        // На сервере удаления ещё нет — не делаем вид, что удалили: только по звонку
+        openSheet(`<h2>Удаление по звонку</h2><p>Удалить аккаунт из приложения пока нельзя. Позвоните нам — удалим в течение 3 рабочих дней и подтвердим по SMS или почте.</p>
+<button class="btn dark" data-a="call">${ic('phone', '#fff', 18)}Позвонить ${esc(fmtPhone(cfg().phone))}</button>`);
+        return;
+      }
+      toast(e.code === 'active_orders' ? 'Есть незавершённые заказы — сначала заберите или отмените их' : 'Не удалось удалить: ' + e.message);
+      return;
+    }
+    closeSheet();
+    ACTIONS.logout();
+    toast('Аккаунт удалён');
   },
   testMode() {
     S.test = !S.test; save(); forget('my-'); refresh();
