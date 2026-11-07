@@ -7,7 +7,7 @@ const A = window.Android || null;   // мост с Android; в обычном б
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
 // Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
-const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.21';
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.22';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -351,24 +351,45 @@ async function pullShared(merge) {
 // ---------- Заказы и записи ----------
 const STATUS = { new: 'Принят', confirmed: 'Подтверждён', in_work: 'Собираем', ready: 'Готов к выдаче', done: 'Выдан', cancelled: 'Отменён', booked: 'Вы записаны' };
 const RANK = { cancelled: -1, new: 0, booked: 0, confirmed: 1, in_work: 2, ready: 3, done: 4 };
-// Этап шага по его названию — чтобы отметки на линии совпадали со статусом заказа, даже если сервер не обновил флаги шагов
+// Этап шага по его названию — чтобы отметки на линии совпадали со статусом заказа, даже если сервер не обновил флаги шагов.
+// Незнакомый шаг («В пути на пункт», «Принят на пункте»…) — null: его отмечает только сервер или следующий пройденный шаг,
+// а не сам факт заказа (раньше такие шаги стояли с галочкой с первой минуты)
 function stepStatus(title) {
   const t = (title || '').toLowerCase();
-  if (t.includes('выдан')) return 'done';
+  if (t.includes('выдан') || t.includes('доставлен') || t.includes('получен')) return 'done';
   if (t.includes('готов')) return 'ready';
-  if (t.includes('собир') || t.includes('работ')) return 'in_work';
+  if (t.includes('собир') || t.includes('сборк') || t.includes('работ')) return 'in_work';
   if (t.includes('подтвер')) return 'confirmed';
-  return 'new';
+  if (t.includes('пункт') || t.includes('пути') || t.includes('доставк') || t.includes('курьер') || t.includes('короб') || t.includes('передан')) return null;
+  if (t.includes('принят') || t.includes('оформлен') || t.includes('создан') || t.includes('оплачен')) return 'new';
+  return null;
 }
+function stepDone(steps, rank) {
+  const done = steps.map(s => { const k = stepStatus(s.title); return !!s.done || (k != null && rank >= RANK[k]); });
+  // Пройден более поздний шаг — значит пройдены и все до него
+  for (let i = done.length - 2; i >= 0; i--) if (done[i + 1]) done[i] = true;
+  return done;
+}
+// Невыкуп (срок хранения вышел) — заказ закрыт, а не «активный»: сервер может прислать свой код или только подпись
+const UNCLAIMED = ['unclaimed', 'not_redeemed', 'not_picked_up', 'nevykup', 'expired'];
+function isUnclaimed(o) {
+  const t = String(o.status_text || '').toLowerCase();
+  return UNCLAIMED.includes(String(o.status || '').toLowerCase()) || t.includes('невыкуп') || t.includes('не выкуп');
+}
+const isCourier = o => !!(o.delivery && o.delivery.type === 'courier');
 function fromOrder(o) {
-  const rank = RANK[o.status] != null ? RANK[o.status] : 0;
-  return { key: o.number, id: o.id, kind: 'shop', number: o.number, status: o.status, statusText: o.status_text || STATUS[o.status] || o.status,
+  const unclaimed = isUnclaimed(o);
+  const status = unclaimed ? 'cancelled' : o.status;
+  const rank = RANK[status] != null ? RANK[status] : 0;
+  const steps = o.steps || [], stepsDone = unclaimed ? steps.map(s => !!s.done) : stepDone(steps, rank);
+  return { key: o.number, id: o.id, kind: 'shop', number: o.number, status, unclaimed,
+    statusText: unclaimed ? 'Не выкуплен' : o.status_text || STATUS[o.status] || 'В работе',
     created: o.created_at, lines: o.lines || [], services: o.services || [], totals: o.totals || {}, delivery: o.delivery || { type: 'pickup' },
     pickup_code: o.pickup_code, test: !!o.test,
     payment_method: o.payment_method || (typeof o.payment === 'string' ? o.payment : '') || 'on_receipt',
     payment_status: o.payment_status || (o.payment && o.payment.status) || null,
     payment_url: (o.payment && o.payment.url) || o.payment_url || '',
-    steps: (o.steps || []).map(s => ({ t: s.title, s: fmtWhen(s.at), done: !!s.done || rank >= RANK[stepStatus(s.title)] })) };
+    steps: steps.map((s, i) => ({ t: s.title, s: fmtWhen(s.at), done: stepsDone[i] })) };
 }
 // Сервер пока не знает пункт заказа — берём его из заказа, сохранённого на телефоне
 function keepPoint(x, local) {
@@ -421,8 +442,8 @@ function allOrders() {
   }
   return [...map.values()].sort((a, b) => String(b.created).localeCompare(String(a.created)));
 }
-const statusPill = o => o.status === 'ready' ? '<span class="pill ok"><i></i>Готов к выдаче</span>'
-  : o.status === 'cancelled' ? '<span class="pill soft">Отменён</span>' : o.status === 'done' ? '<span class="pill soft">Выдан</span>'
+const statusPill = o => o.status === 'ready' ? `<span class="pill ok"><i></i>${isCourier(o) ? 'Передан курьеру' : 'Готов к выдаче'}</span>`
+  : o.status === 'cancelled' ? `<span class="pill soft">${o.unclaimed ? 'Не выкуплен' : 'Отменён'}</span>` : o.status === 'done' ? '<span class="pill soft">Выдан</span>'
     : `<span class="pill wait"><i></i>${esc(o.statusText)}</span>`;
 const testPill = o => o.test ? '<span class="pill test">Тест</span>' : '';
 
@@ -856,7 +877,7 @@ const SCREENS = {
 <div class="row between"><span class="kicker">${o.kind === 'repair' ? 'Моя запись' : 'Мой заказ'}</span>${statusPill(o)}</div>
 <div class="row" style="gap:12px;margin-top:12px"><div class="sq c-blue">${ic(o.kind === 'repair' ? 'wrench' : 'bag', BLUE, 22)}</div>
 <div style="min-width:0;flex:1"><div class="t">${esc(orderTitle(o))}</div><div class="s">${esc(o.kind === 'repair' ? o.when || o.sub : orderSub(o))} · ${esc(o.number)}</div></div>
-${o.status === 'ready' && o.pickup_code ? `<span class="qrb">${ic('scan', '#fff', 18)}QR</span>` : ''}</div></button>`
+${o.status === 'ready' && o.pickup_code && !isCourier(o) ? `<span class="qrb">${ic('scan', '#fff', 18)}QR</span>` : ''}</div></button>`
       : `<button class="card repair tap" data-a="nav" data-x="repair"><div class="row" style="gap:12px"><div class="sq c-blue">${ic('wrench', BLUE, 22)}</div>
 <div><div class="t">Ремонт телефонов</div><div class="s">Запишитесь — платите после ремонта</div></div></div></button>`;
     // Истории-кружки: быстрый вход в услуги и верхние разделы — как у WB/Ozon
@@ -1196,14 +1217,16 @@ ${pq ? strip('Пригодится к заказу', extraItems, { cls: 'more-h'
     }
     const c = cfg();
     const op = orderPoint(o);
-    const head = o.status === 'ready' ? { h: 'Можно забирать', s: `Пункт выдачи ARGEDA · ${esc(short(op.address))}<br>${closeOf(op)} · ${payText(o)}` }
+    const head = o.status === 'ready' && isCourier(o) && o.kind !== 'repair' ? { h: 'Курьер везёт заказ', s: `Перед выездом позвоним · ${esc(o.delivery.address || '')}${o.delivery.address ? '<br>' : ''}${payText(o)}` }
+      : o.unclaimed ? { h: 'Заказ не выкуплен', s: 'Срок хранения в пункте закончился. Если есть вопросы — позвоните нам' }
+      : o.status === 'ready' ? { h: 'Можно забирать', s: `Пункт выдачи ARGEDA · ${esc(short(op.address))}<br>${closeOf(op)} · ${payText(o)}` }
       : o.kind === 'repair' ? { h: o.when ? 'Ждём вас ' + esc(o.when) : 'Вы записаны', s: `Мастерская ARGEDA · ${esc(workshopAddr())}<br>Платите после ремонта` }
         : o.status === 'done' ? { h: 'Заказ выдан', s: 'Спасибо, что выбрали ARGEDA!' } : o.status === 'cancelled' ? { h: 'Заказ отменён', s: o.payment_method === 'online' && o.payment_status !== 'paid' ? 'Оплата не поступила за 30 минут. Соберите заказ заново — мы поможем' : 'Если это ошибка — позвоните нам' }
           : { h: o.status === 'in_work' ? 'Собираем заказ' : 'Заказ оформлен', s: o.delivery.type === 'courier' ? 'Курьер привезёт заказ — перед выездом позвоним' : `Соберём заказ и сообщим, когда можно забирать<br>Пункт выдачи: ${esc(short(op.address))}, ${closeOf(op)}` };
-    const isReady = o.status === 'ready';
+    const isReady = o.status === 'ready' && !isCourier(o);
     const qr = isReady && o.pickup_code
       ? `${QR.qrSvg(o.pickup_code, 120)}<div><div class="kicker">Код выдачи</div><div class="code">${esc(o.number)}</div><div class="s">Покажите QR на кассе — заказ выдадут без поиска по номеру</div></div>`
-      : `<div class="noqr">${ic(isReady && o.kind !== 'repair' ? 'check' : 'clock', isReady && o.kind !== 'repair' ? GREEN : GREY, 32)}</div><div><div class="kicker">${o.kind === 'repair' ? 'Номер записи' : 'Номер заказа'}</div><div class="code">${esc(o.number)}</div><div class="s">${o.kind === 'repair' ? 'Назовите номер мастеру при визите' : isReady ? 'Заказ готов — назовите номер на кассе при получении' : 'QR-код для выдачи появится, когда заказ будет готов'}</div></div>`;
+      : `<div class="noqr">${ic(isReady && o.kind !== 'repair' ? 'check' : 'clock', isReady && o.kind !== 'repair' ? GREEN : GREY, 32)}</div><div><div class="kicker">${o.kind === 'repair' ? 'Номер записи' : 'Номер заказа'}</div><div class="code">${esc(o.number)}</div><div class="s">${o.kind === 'repair' ? 'Назовите номер мастеру при визите' : isCourier(o) ? 'Назовите номер заказа курьеру при получении' : isReady ? 'Заказ готов — назовите номер на кассе при получении' : 'QR-код для выдачи появится, когда заказ будет готов'}</div></div>`;
     const steps = o.steps.map((s, i) => `<div class="r">${i < o.steps.length - 1 ? `<span class="ln${o.steps[i + 1].done ? '' : ' wait'}"></span>` : ''}
 <span class="c${s.done ? '' : ' wait'}">${s.done ? ic('check', '#fff', 14, 3) : ''}</span><div><div class="t${s.done ? '' : ' wait'}">${esc(s.t)}</div><div class="s">${esc(s.s)}</div></div></div>`).join('');
     let items = '';
@@ -1294,7 +1317,7 @@ ${!rs && ERR[R.key] ? errBox(errText(R.key), R.key) : ''}
   profile() {
     const orders = allOrders(), nOrders = orders.length, nFav = S.fav.length, c = cfg();
     const active = orders.find(o => !['done', 'cancelled'].includes(o.status));
-    const ready = orders.find(o => o.status === 'ready');
+    const ready = orders.find(o => o.status === 'ready' && !isCourier(o));
     const name = S.user ? (S.user.name || fmtPhone(S.user.phone)) : 'Гость';
     const sub = S.user ? fmtPhone(S.user.phone) : 'Войдите с паролем от argeda.ru — увидите заказы с сайта';
     const q3 = (icon, label, act, x = '') => `<button class="pq" data-a="${act}" data-x="${x}"><span class="pqic">${ic(icon, BLUE, 22)}</span>${label}</button>`;

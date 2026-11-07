@@ -4,4 +4,5 @@
     <string name="sc_seller">Продавец</string>
     <string name="sc_pvz">Пункт выдачи</string>
     <string name="sc_courier">Курьер</string>
+    <string name="sc_admin">Админ</string>
 </resources>
