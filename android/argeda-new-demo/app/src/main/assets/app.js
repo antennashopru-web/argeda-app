@@ -7,7 +7,7 @@ const A = window.Android || null;   // мост с Android; в обычном б
 const API = 'https://argeda.ru/api/app/v1';
 const SITE = 'https://argeda.ru/';
 // Версия берётся из самого APK (build.gradle → versionName), чтобы надпись в настройках не отставала
-const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.19';
+const VERSION = (A && typeof A.version === 'function' && A.version()) || '1.20';
 const TEST_BUILD = false;  // боевая сборка: заказы уходят в магазин, демо-оценок и тестового режима нет. true — только для сборки разработчика
 const DEF = { phone: '+79939000077', pickup: { address: 'Пушкино, ул. Лермонтова, 2', hours: '10:00–20:00' }, consent: { version: '2026-10-12', url: 'https://argeda.ru/privacy' }, features: { courier: true } };
 // Пункты выдачи — запас на случай, если /config не ответил. Основной список (id, адрес, часы) — pickup_points из /config; id совпадают с сервером
@@ -451,6 +451,21 @@ function phoneName() {
   return r && r.model_found && r.model ? r.model : deviceModel();
 }
 const phoneShort = () => stripMaker(phoneName());
+// Имя телефона для людей. Сервер не узнал модель — берём название из настроек телефона («Galaxy A01»),
+// а заводской код вроде «SM-A015F» на экран не выводим: тогда просто «телефон»
+const looksLikeCode = s => /\bSM-[A-Z]\d|^[A-Z0-9]{2,}[-_][A-Z0-9-]+$|^[A-Z]{1,3}\d{3,}[A-Z0-9]*$/i.test(stripMaker(s).trim());
+function marketName() { try { if (A && A.marketName) return A.marketName() || ''; } catch (e) { /* старый мост */ } return ''; }
+function phoneLabel() {
+  const r = repairInfo().data;
+  if (r && r.model_found && r.model) return stripMaker(r.model);
+  if (S.model) return stripMaker(S.model);
+  const m = marketName();
+  if (m) return stripMaker(m);
+  const d = deviceModel();
+  return looksLikeCode(d) ? '' : stripMaker(d);
+}
+// «Для вашего Galaxy A01» или «Для вашего телефона»
+const forMine = (pre, fallback) => { const l = phoneLabel(); return l ? pre + ' ' + l : fallback; };
 // По какому запросу искать товары для телефона покупателя
 const phoneQuery = () => modelCode(deviceModel()) || phoneShort();
 const normModel = s => stripMaker(String(s).toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim()).replace(/^galaxy /, '');
@@ -855,7 +870,7 @@ ${o.status === 'ready' && o.pickup_code ? `<span class="qrb">${ic('scan', '#fff'
     const q = phoneQuery(), forPhone = q ? picks('feed:' + q, `q=${encodeURIComponent(q)}&limit=12`) : [];
     return {
       tab: 'home', darkTop: false,
-      html: `<div class="mhead">
+      html: `<div class="mhead${ui.headSmall ? ' compact' : ''}">
 <div class="mrow"><div class="mbrand">${logo(28)}<span>ARGEDA</span></div>
 <button class="maddr" data-a="pickup">${ic('pin', BLUE, 15)}<span>${esc(shortAddr())}</span>${ic('chev-r', GREY, 14)}</button>
 </div>
@@ -866,13 +881,24 @@ ${o.status === 'ready' && o.pickup_code ? `<span class="qrb">${ic('scan', '#fff'
 ${orderCard}
 ${banners}
 ${!h && ERR.home ? errBox(errText('home'), 'home') : ''}
-${forPhone && forPhone.length < 2 ? '' : strip('Для вашего ' + phoneShort(), forPhone, { sub: 'Запчасти и аксессуары, которые подходят', all: ['searchFor', q] })}
+${forPhone && forPhone.length < 2 ? '' : strip(forMine('Для вашего', 'Для вашего телефона'), forPhone, { sub: 'Запчасти и аксессуары, которые подходят', all: ['searchFor', q] })}
 ${strip('Есть в пункте сегодня', today, { all: ['nav', 'catalog'] })}
 ${TEST_BUILD && S.test ? '<div class="testline">Тестовая сборка: заказы и записи помечаются «тест» и в магазин не уходят</div>' : ''}
 ${feedHtml()}</div>`,
       after() {
         // Лента внизу главной подгружается, пока листают — как у маркетплейсов
         nearBottom = loadFeed;
+        // Листают вниз — шапка сжимается до строки поиска, вернулись наверх — снова логотип и адрес.
+        // Разные пороги, чтобы шапка не дёргалась на границе
+        const head = view.querySelector('.mhead');
+        onScroll = () => {
+          if (!head) return;
+          const y = view.scrollTop, on = head.classList.contains('compact');
+          if (!on && y > 90) head.classList.add('compact');
+          else if (on && y < 24) head.classList.remove('compact');
+          // Помним состояние: лента перерисовывает главную, и шапка не должна каждый раз заново сжиматься
+          ui.headSmall = head.classList.contains('compact');
+        };
         if (!FEED.items.length && !FEED.err) loadFeed();
       },
     };
@@ -913,7 +939,7 @@ ${body}</div>`,
     // Фильтры: «для моего телефона» работает через поиск сервера; наличие и цена — когда сервер включит features.filters
     const nf = fltCount();
     const filters = `<button class="chip flt${nf ? ' on' : ''}" data-a="filters">${ic('filter', nf ? '#fff' : INK, 16)}Фильтры${nf ? `<span class="cnt">${nf}</span>` : ''}</button>
-<button class="chip flt${ui.flt.model ? ' on' : ''}" data-a="fltModel">${ic('phone-dev', ui.flt.model ? '#fff' : INK, 16)}Для ${esc(phoneShort())}</button>`;
+<button class="chip flt${ui.flt.model ? ' on' : ''}" data-a="fltModel">${ic('phone-dev', ui.flt.model ? '#fff' : INK, 16)}${esc(forMine('Для', 'Для моего телефона'))}</button>`;
     const sub = kids.length ? `<div class="chips scroll subcats">${kids.map(k => `<button class="chip" data-a="go" data-x="list|${esc(k.id)}">${esc(k.name)}<small>${k.count.toLocaleString('ru-RU')}</small></button>`).join('')}</div>` : '';
     const body = L.items.length ? `<div class="grid">${L.items.map(pcard).join('')}</div>` + (L.done ? '' : `<div class="more">${L.loading ? 'Загружаем ещё…' : L.err ? errBox(L.err, 'list') : `<button class="btn outline" data-a="more">Показать ещё</button>`}</div>`)
       : L.err ? errBox(L.err, 'list') : L.done ? `<div class="empty"><div class="sq c-blue">${ic('grid', BLUE, 32)}</div><h3>${nf ? 'Ничего не подошло' : 'Здесь пока пусто'}</h3><p>${nf ? 'Попробуйте убрать фильтры или спросите мастера — подберём по телефону.' : 'В этом разделе нет товаров в продаже.'}</p>${nf ? '<button class="btn outline" data-a="fltReset">Сбросить фильтры</button>' : ''}</div>`
@@ -1018,9 +1044,9 @@ ${L.total != null ? `<div class="lcount">${count(L.total)}</div>` : ''}${sub}<di
     const desc = full && full.description ? `<div class="kicker" style="margin-top:20px">Описание</div><div class="desc${ui.descOpen ? ' open' : ''}">${esc(full.description)}</div>${full.description.length > 220 && !ui.descOpen ? '<button class="linkb" data-a="desc">Показать полностью</button>' : ''}` : '';
     // Главный вопрос покупателя запчасти — «подойдёт ли к моему телефону?» — сразу под ценой
     const mine = fitsMine(p);
-    const fits = mine ? `<div class="fitbox yes">${ic('check', GREEN, 22, 2.6)}<span>Подходит к вашему ${esc(phoneShort())}<small>Сверили с моделью этого телефона</small></span></div>`
+    const fits = mine ? `<div class="fitbox yes">${ic('check', GREEN, 22, 2.6)}<span>${esc(forMine('Подходит к вашему', 'Подходит к вашему телефону'))}<small>Сверили с моделью этого телефона</small></span></div>`
       : p.fits && p.fits.length ? `<div class="fitbox no"><span>Подходит для</span><div class="row">${p.fits.map(f => `<span class="pill soft">${esc(f)}</span>`).join('')}</div>
-<small>Ваш телефон — ${esc(phoneShort())}. Не уверены? <button class="linkb" data-a="call">Спросите мастера</button></small></div>` : '';
+<small>${esc(forMine('Ваш телефон —', 'Модель телефона не определилась'))}. Не уверены? <button class="linkb" data-a="call">Спросите мастера</button></small></div>` : '';
     const warranty = (full && full.attributes || []).find(a => /гарант/i.test(a.name));
     const other = p.seller && p.seller.id && p.seller.id !== 'argeda';
     const seller = other ? `<span class="pill soft">Продавец ${esc(p.seller.name)}</span>` : '';
@@ -1255,7 +1281,7 @@ ${items}</div>`,
 <div class="sub">Мастерская ARGEDA · ${esc(workshopAddr())}</div>
 <div class="trust">${trustChips()}</div>
 <div class="dev"><span class="sq" style="background:rgba(255,255,255,.1)">${ic('phone-dev', SKY, 22)}</span>
-<span style="min-width:0"><div class="k">Ваш телефон</div><div class="t">${esc(rs && rs.model_found && rs.model ? rs.model : model)}</div><div class="s">${rs && !rs.model_found ? 'Цены «от» — точную назовём после диагностики' : S.model ? 'Указали вручную' : 'Определили автоматически'}</div></span><button class="ch" data-a="model">Другой</button></div>
+<span style="min-width:0"><div class="k">Ваш телефон</div><div class="t">${esc(rs && rs.model_found && rs.model ? rs.model : S.model ? S.model : phoneLabel() || model)}</div><div class="s">${rs && !rs.model_found ? 'Цены «от» — точную назовём после диагностики' : S.model ? 'Указали вручную' : 'Определили автоматически'}</div></span><button class="ch" data-a="model">Другой</button></div>
 ${!rs && ERR[R.key] ? errBox(errText(R.key), R.key) : ''}
 <div class="sec-h"><h3>Что случилось?</h3></div><div class="probs">${tiles}</div>${svcList}
 <div class="sec-h"><h3>Когда удобно?</h3></div><div class="chips">${dchips}</div>
@@ -1626,7 +1652,7 @@ const ACTIONS = {
   filters() {
     const f = ui.flt, more = filtersOn();
     openSheet(`<h2>Фильтры</h2>
-<button class="tgrow${f.model ? ' on' : ''}" id="fM"><span class="sq c-blue" style="width:38px;height:38px">${ic('phone-dev', BLUE, 20)}</span><span style="flex:1">Для моего телефона<small>${esc(phoneName())}</small></span><span class="tg${f.model ? ' on' : ''}"><i></i></span></button>
+<button class="tgrow${f.model ? ' on' : ''}" id="fM"><span class="sq c-blue" style="width:38px;height:38px">${ic('phone-dev', BLUE, 20)}</span><span style="flex:1">Для моего телефона<small>${esc(phoneLabel() || 'Модель не определилась — укажите в «Ремонте»')}</small></span><span class="tg${f.model ? ' on' : ''}"><i></i></span></button>
 <button class="linkb" data-a="model" style="margin-left:50px">Указать другую модель</button>
 ${more ? `<button class="tgrow${f.today ? ' on' : ''}" id="fT"><span class="sq c-green" style="width:38px;height:38px">${ic('store', GREEN, 20)}</span><span style="flex:1">Есть в пункте сегодня<small>Без товаров под заказ</small></span><span class="tg${f.today ? ' on' : ''}"><i></i></span></button>
 <div class="lbl2">Цена, ₽</div><div class="pair"><div class="field">${'от'}<input id="fPmin" inputmode="numeric" value="${esc(f.pmin)}" placeholder="0"></div><div class="field">${'до'}<input id="fPmax" inputmode="numeric" value="${esc(f.pmax)}" placeholder="любая"></div></div>
