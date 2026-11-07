@@ -70,6 +70,7 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
   color: #fff; background: linear-gradient(135deg, #2C7BEA, #1668D9); width: 100%; }
 .btn.dark { background: var(--sel); color: var(--sel-ink); }
 .btn.outline { background: var(--card); color: var(--ink); border: 1.5px solid var(--line2); }
+.btn.danger { background: #D92D20; color: #fff; } .btn.outline.danger { background: var(--card); color: var(--coral-ic); border-color: var(--coral-ic); }
 .btn:disabled { opacity: .45; }
 .icon-btn { width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; position: relative; flex: none; color: var(--ink); }
 .icon-btn.glass { background: rgba(255,255,255,.1); }
