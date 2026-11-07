@@ -223,6 +223,21 @@ public class MainActivity extends Activity {
             return model.toLowerCase(Locale.ROOT).startsWith(maker.toLowerCase(Locale.ROOT)) ? model : (maker + " " + model).trim();
         }
 
+        // Название телефона из настроек («Galaxy A01»), если оно похоже на модель, а не на имя, которое дал владелец
+        // («Телефон Маши»). Пусто — страница покажет просто «телефон», а не заводской код вроде SM-A015F.
+        @JavascriptInterface
+        public String marketName() {
+            String name = null;
+            try {
+                name = android.provider.Settings.Global.getString(getContentResolver(), "device_name");
+            } catch (RuntimeException ignored) {
+                // нет доступа к настройкам — вернём пусто
+            }
+            if (name == null) return "";
+            name = name.trim();
+            return name.matches("(?i)^(Samsung |Xiaomi )?(Galaxy|Redmi|POCO|Mi|HONOR|HUAWEI|realme|OPPO|vivo|TECNO|Infinix|Pixel|moto|Nokia|OnePlus|ZTE|Blade) .{1,24}$") ? name : "";
+        }
+
         // Светлые значки статус-бара нужны там, где сверху тёмная шапка
         @JavascriptInterface
         public void setLight(boolean light) {

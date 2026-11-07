@@ -491,6 +491,10 @@ img.broken { visibility: hidden; }
 /* Главная в стиле маркетплейса: компактная шапка, истории, сетка */
 .mhead { position: sticky; top: 0; z-index: 18; background: var(--card); padding: var(--top) 16px 10px; box-shadow: 0 2px 14px var(--shadow); }
 .mrow { display: flex; align-items: center; gap: 10px; height: 42px; }
+/* Сжатая шапка главной при прокрутке: остаётся только поиск */
+.mhead .mrow { overflow: hidden; transition: height .2s ease, opacity .2s ease; }
+.mhead.compact .mrow { height: 0; opacity: 0; pointer-events: none; }
+.mhead.compact .msearch { margin-top: 2px; }
 .mbrand { display: flex; align-items: center; gap: 8px; font: 700 18px 'Manrope'; letter-spacing: .02em; }
 .maddr { margin-left: auto; display: flex; align-items: center; gap: 4px; font: 500 12px 'Manrope'; color: var(--ink2); max-width: 48%; min-width: 0; }
 .maddr span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
