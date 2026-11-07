@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Песочница: ярлыки ролей. Всё только на копии сайта kopiya.argeda.ru -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="buyer"
+        android:shortcutShortLabel="@string/sc_buyer">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://kopiya.argeda.ru/?utm_source=sandbox_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.sandbox" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="seller"
+        android:shortcutShortLabel="@string/sc_seller">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://kopiya.argeda.ru/seller?utm_source=sandbox_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.sandbox" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="pvz"
+        android:shortcutShortLabel="@string/sc_pvz">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://kopiya.argeda.ru/pvz?utm_source=sandbox_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.sandbox" />
+    </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="courier"
+        android:shortcutShortLabel="@string/sc_courier">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://kopiya.argeda.ru/courier?utm_source=sandbox_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.sandbox" />
+    </shortcut>
+</shortcuts>

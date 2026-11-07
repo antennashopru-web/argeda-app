@@ -19,8 +19,10 @@ android {
     defaultConfig {
         minSdk 29
         targetSdk 35
-        versionCode 7
-        versionName '1.6'
+        versionCode 8
+        versionName '1.7'
+        // Песочница — отдельная сборка (см. sandbox ниже); у живых кабинетов выключено
+        buildConfigField 'boolean', 'SANDBOX', 'false'
     }
 
     buildFeatures {
@@ -50,8 +52,9 @@ android {
         }
     }
 
-    // Один код — четыре кабинета. Разновидность «cabinet» выбирает кабинет, «site» — живой сайт или копию.
-    flavorDimensions = ['cabinet', 'site']
+    // Один код — четыре кабинета и Песочница. Разновидность выбирает кабинет.
+    // Копии кабинетов для kopiya.argeda.ru (до 1.6) заменены одним приложением «ARGEDA Песочница».
+    flavorDimensions = ['cabinet']
     productFlavors {
         seller {
             dimension 'cabinet'
@@ -60,7 +63,6 @@ android {
             buildConfigField 'String', 'CABINET', '"seller"'
             buildConfigField 'String', 'HOST', '"seller.argeda.ru"'
             buildConfigField 'String', 'START_PATH', '"/"'
-            buildConfigField 'String', 'KOPIYA_PATH', '"/seller"'
             resValue 'string', 'app_name', 'ARGEDA Продавец'
         }
         pvz {
@@ -70,7 +72,6 @@ android {
             buildConfigField 'String', 'CABINET', '"pvz"'
             buildConfigField 'String', 'HOST', '"pvz.argeda.ru"'
             buildConfigField 'String', 'START_PATH', '"/"'
-            buildConfigField 'String', 'KOPIYA_PATH', '"/pvz"'
             resValue 'string', 'app_name', 'ARGEDA Пункт'
         }
         courier {
@@ -80,7 +81,6 @@ android {
             buildConfigField 'String', 'CABINET', '"courier"'
             buildConfigField 'String', 'HOST', '"courier.argeda.ru"'
             buildConfigField 'String', 'START_PATH', '"/"'
-            buildConfigField 'String', 'KOPIYA_PATH', '"/courier"'
             resValue 'string', 'app_name', 'ARGEDA Курьер'
         }
         admin {
@@ -90,18 +90,19 @@ android {
             buildConfigField 'String', 'CABINET', '"admin"'
             buildConfigField 'String', 'HOST', '"admin.argeda.ru"'
             buildConfigField 'String', 'START_PATH', '"/"'
-            buildConfigField 'String', 'KOPIYA_PATH', '"/admin"'
             resValue 'string', 'app_name', 'ARGEDA Админ'
         }
-        live {
-            dimension 'site'
-            buildConfigField 'boolean', 'KOPIYA', 'false'
-        }
-        kopiya {
-            dimension 'site'
-            applicationIdSuffix '.kopiya'
-            versionNameSuffix '-kopiya'
-            buildConfigField 'boolean', 'KOPIYA', 'true'
+        // Песочница для проверок: покупатель и все кабинеты, только на копии сайта kopiya.argeda.ru.
+        // Живой сайт из неё не открывается, сверху всегда оранжевая полоса «Песочница».
+        sandbox {
+            dimension 'cabinet'
+            applicationId 'ru.argeda.sandbox'
+            manifestPlaceholders = [cabinetHost: 'kopiya.argeda.ru']
+            buildConfigField 'String', 'CABINET', '"sandbox"'
+            buildConfigField 'String', 'HOST', '"kopiya.argeda.ru"'
+            buildConfigField 'String', 'START_PATH', '"/"'
+            buildConfigField 'boolean', 'SANDBOX', 'true'
+            resValue 'string', 'app_name', 'ARGEDA Песочница'
         }
     }
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_buyer">Покупатель</string>
+    <string name="sc_seller">Продавец</string>
+    <string name="sc_pvz">Пункт выдачи</string>
+    <string name="sc_courier">Курьер</string>
+</resources>

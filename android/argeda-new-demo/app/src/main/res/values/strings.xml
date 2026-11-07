@@ -11,7 +11,7 @@
     <string name="upd_later">Позже</string>
     <string name="upd_downloading">ARGEDA %1$s — обновление</string>
     <string name="upd_started">Скачиваю обновление… Когда загрузится, откроется установщик</string>
-    <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже или скачайте с argeda.ru/app</string>
+    <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже: приложение предложит его снова</string>
     <string name="upd_open_failed">Не удалось открыть установщик. Файл обновления лежит в «Загрузках»</string>
     <string name="upd_check_failed">Не удалось проверить обновления. Проверьте интернет</string>
     <string name="upd_latest">У вас последняя версия</string>

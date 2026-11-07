@@ -52,7 +52,13 @@ public class BadgeJobService extends JobService {
 
     static void schedule(Context c) {
         JobScheduler js = c.getSystemService(JobScheduler.class);
-        if (js == null || js.getPendingJob(JOB_ID) != null) return;
+        if (js == null) return;
+        // Песочница — для проверок на копии сайта: уведомления о «новых заказах» копии не нужны
+        if (BuildConfig.SANDBOX) {
+            js.cancel(JOB_ID);
+            return;
+        }
+        if (js.getPendingJob(JOB_ID) != null) return;
         JobInfo job = new JobInfo.Builder(JOB_ID, new ComponentName(c, BadgeJobService.class))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .setPeriodic(JobInfo.getMinPeriodMillis())
