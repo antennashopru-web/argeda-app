@@ -41,4 +41,14 @@
             android:targetClass="ru.argeda.cabinet.MainActivity"
             android:targetPackage="ru.argeda.sandbox" />
     </shortcut>
+    <shortcut
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="admin"
+        android:shortcutShortLabel="@string/sc_admin">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://kopiya.argeda.ru/admin?utm_source=sandbox_app"
+            android:targetClass="ru.argeda.cabinet.MainActivity"
+            android:targetPackage="ru.argeda.sandbox" />
+    </shortcut>
 </shortcuts>
