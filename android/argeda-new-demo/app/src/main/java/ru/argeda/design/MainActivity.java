@@ -415,6 +415,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        Updater.resume(this); // вернулись из настроек разрешения или установщик ждал приложение на экране
         checkUpdate(false);
         // Вернулись в приложение (в т.ч. после оплаты в браузере) — обновим открытый заказ
         if (pageReady && web != null) web.evaluateJavascript("window.appResumed && window.appResumed()", null);
@@ -422,6 +423,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        Updater.pause(this);
         web.onPause();
         super.onPause();
     }

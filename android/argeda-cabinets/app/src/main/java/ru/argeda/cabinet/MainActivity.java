@@ -735,11 +735,13 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        Updater.resume(this); // вернулись из настроек разрешения или установщик ждал приложение на экране
         checkUpdate(); // не чаще раза в 4 часа — Updater сам следит
     }
 
     @Override
     protected void onPause() {
+        Updater.pause(this);
         web.onPause();
         CookieManager.getInstance().flush();
         super.onPause();

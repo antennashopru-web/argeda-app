@@ -5,14 +5,27 @@
 
     <!-- Автообновление -->
     <string name="upd_title">Новая версия %1$s</string>
-    <string name="upd_text">Обновление %1$s скачается в «Загрузки» и откроется установщик. Корзина, заказы и вход сохранятся.</string>
+    <string name="upd_text">Обновление %1$s скачается и установится само. Корзина, заказы и вход сохранятся.</string>
     <string name="upd_must">Без этого обновления заказы могут не оформиться.</string>
     <string name="upd_install">Обновить</string>
     <string name="upd_later">Позже</string>
-    <string name="upd_downloading">ARGEDA %1$s — обновление</string>
-    <string name="upd_started">Скачиваю обновление… Когда загрузится, откроется установщик</string>
     <string name="upd_download_failed">Не удалось скачать обновление. Попробуйте позже: приложение предложит его снова</string>
-    <string name="upd_open_failed">Не удалось открыть установщик. Файл обновления лежит в «Загрузках»</string>
+    <string name="upd_open_failed">Не удалось открыть настройки Android</string>
     <string name="upd_check_failed">Не удалось проверить обновления. Проверьте интернет</string>
+    <string name="upd_busy">Обновление уже скачивается или ставится</string>
+    <string name="upd_downloading_title">Скачиваю обновление</string>
+    <string name="upd_progress_start">Подключаюсь…</string>
+    <string name="upd_progress">Скачано %1$s из %2$s МБ (%3$d%%). Можно закрыть это окно: установка начнётся сама</string>
+    <string name="upd_hide">Скрыть</string>
+    <string name="upd_installing">Устанавливаю обновление. Приложение само закроется и обновится — потом откройте его снова</string>
+    <string name="upd_perm_title">Нужно одно разрешение</string>
+    <string name="upd_perm_text">Чтобы приложение могло обновляться само, Android просит один раз разрешить ему «Установку неизвестных приложений». Откроются настройки: включите переключатель и вернитесь назад.</string>
+    <string name="upd_perm_open">Открыть настройки</string>
+    <string name="upd_no_permission">Без разрешения обновление не установить. Нажмите «Обновить», когда будет удобно</string>
+    <string name="upd_install_failed">Не удалось установить обновление</string>
+    <string name="upd_wrong_key">Это обновление не ставится поверх: приложение установлено из другого источника. Удалите его и поставьте заново со страницы релизов ARGEDA</string>
+    <string name="upd_no_space">Не хватает места на телефоне для обновления</string>
+    <string name="upd_try_browser">Скачать обновление через браузер и поставить вручную?</string>
+    <string name="upd_browser">Скачать</string>
     <string name="upd_latest">У вас последняя версия</string>
 </resources>
