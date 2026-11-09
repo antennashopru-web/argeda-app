@@ -1,5 +1,8 @@
 # Сборка APK без Android SDK
 
+> **Устарело с ARGEDA 1.24 / кабинетов 1.10:** приложения переписаны на Kotlin, а этот скрипт умеет только Java.
+> Настоящая сборка — GitHub Actions (`docs/sborka-github.md`). Скрипт оставлен для истории.
+
 Запасной способ для облака, где закрыт dl.google.com (там живут Android SDK и maven.google.com).
 Все части берутся с GitHub и Maven Central, подпись по схеме v2 сделана штатными средствами JDK.
 

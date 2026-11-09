@@ -5,7 +5,7 @@
 ## Обновления приложений (обязательно для каждого приложения ARGEDA)
 
 Любое Android-приложение ARGEDA (покупательское, кабинеты, Песочница, ARGEDA TV и будущие) обновляется по одной схеме.
-Код-образец: `android/argeda-new-demo/app/src/main/java/ru/argeda/design/Updater.java` + `UpdateReceiver.java`,
+Код-образец: `android/argeda-new-demo/app/src/main/java/ru/argeda/design/Updater.kt` + `UpdateReceiver.kt`,
 описание — `docs/avtoobnovlenie.md`.
 
 1. **Один ключ подписи навсегда.** Только НОВЫЙ ключ (секрет `SIGNING_PASSWORD`, `signing/argeda-release.jks.enc`).
@@ -26,6 +26,9 @@
 
 ## Код
 
-- Java без лямбд и ссылок на методы (сборка проверяет `LambdaMetafactory`) — только анонимные классы.
+- Язык — **Kotlin** (с ARGEDA 1.24 и кабинетов 1.10), новые файлы только `.kt`.
+  Лямбды можно: в `build.gradle` стоят `-Xlambdas=class` и `-Xsam-conversions=class`, они собираются обычными
+  классами. Эти настройки не убирать — сборка проверяет, что в APK нет `LambdaMetafactory`.
+- Всё, что приходит из JavaScript в мост (`@JavascriptInterface`), объявлять `String?`: страница может прислать null.
 - Сборка и релиз: push в `main` → GitHub Actions (`.github/workflows/android.yml`) → Releases. PR сливает только Артак.
 - Пароли и ключи в репозиторий и в чат не писать.

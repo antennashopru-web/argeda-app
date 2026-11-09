@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 // Ключ подписи и пароли — из keystore.properties (не в репозитории, см. .gitignore).
@@ -18,8 +19,8 @@ android {
         applicationId 'ru.argeda.design'
         minSdk 26
         targetSdk 35
-        versionCode 24
-        versionName '1.23'
+        versionCode 25
+        versionName '1.24'
     }
 
     buildFeatures {
@@ -58,5 +59,22 @@ android {
     lint {
         // Старые предупреждения SDK не должны останавливать сборку релиза
         abortOnError false
+    }
+}
+
+// Kotlin. Лямбды и «fun interface» собираются обычными классами, а не через invokedynamic:
+// в dex не должно быть LambdaMetafactory (проверка в .github/workflows/android.yml).
+// Проверки null на входе методов выключены: поведение как было на Java (WebView и Android иногда передают null).
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        freeCompilerArgs.addAll([
+                '-Xlambdas=class',
+                '-Xsam-conversions=class',
+                '-Xstring-concat=inline',
+                '-Xno-param-assertions',
+                '-Xno-call-assertions',
+                '-Xno-receiver-assertions',
+        ])
     }
 }
