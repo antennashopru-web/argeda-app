@@ -1,9 +1,11 @@
+// Зеркало Maven Central от Google стоит раньше самого Maven Central: 09.11 Maven Central отдавал
+// kotlin-compiler-embeddable через переадресацию, которая падала с 504, и релиз не собирался.
 pluginManagement {
-    repositories { google(); mavenCentral(); maven { url 'https://repo1.maven.org/maven2/' }; gradlePluginPortal() }
+    repositories { google(); maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }; mavenCentral(); maven { url 'https://repo1.maven.org/maven2/' }; gradlePluginPortal() }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories { google(); mavenCentral(); maven { url 'https://repo1.maven.org/maven2/' } }
+    repositories { google(); maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }; mavenCentral(); maven { url 'https://repo1.maven.org/maven2/' } }
 }
 rootProject.name = 'ArgedaCabinets'
 include ':app'
