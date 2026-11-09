@@ -22,4 +22,4 @@
 Поднять `versionCode` и `versionName` в `app/build.gradle` → push в `main` → GitHub Actions собирает, подписывает
 и публикует релиз (`docs/sborka-github.md`). Ключ подписи хранится только в секретах репозитория.
 
-Без лямбд в Java: запасная сборка без SDK их не переносит, сборка это проверяет.
+Язык — Kotlin. Лямбды собираются классами (`-Xlambdas=class`), сборка проверяет, что в APK нет `LambdaMetafactory`.

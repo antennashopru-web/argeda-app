@@ -25,7 +25,7 @@
 
 ## Как устроено
 
-- `Net.java` (одинаковый в обоих приложениях): `ConnectivityManager.NetworkCallback`; при смене состояния переключает
+- `Net.kt` (одинаковый в обоих приложениях): `ConnectivityManager.NetworkCallback`; при смене состояния переключает
   `WebSettings.setCacheMode` и зовёт `WebView.setNetworkAvailable`, чтобы страница получала `navigator.onLine`
   и события `online`/`offline`. Запускается в `onStart`, снимается в `onStop`. Нужно разрешение `ACCESS_NETWORK_STATE`.
 - Покупательское `app.js`: блок «Связь» (`NET`, `wentOffline`, `cameOnline`, `netPing`, `needNet`), плашка `#net`.

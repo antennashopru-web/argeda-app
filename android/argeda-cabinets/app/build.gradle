@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 // Ключ подписи и пароли — из app/keystore.properties (не в репозитории, см. .gitignore):
@@ -19,8 +20,8 @@ android {
     defaultConfig {
         minSdk 29
         targetSdk 35
-        versionCode 10
-        versionName '1.9'
+        versionCode 11
+        versionName '1.10'
         // Песочница — отдельная сборка (см. sandbox ниже); у живых кабинетов выключено
         buildConfigField 'boolean', 'SANDBOX', 'false'
     }
@@ -44,8 +45,10 @@ android {
     buildTypes {
         release {
             debuggable false
-            // Без сжатия кода: приложение маленькое, а мост со страницей (JavascriptInterface) и службы должны остаться как есть
-            minifyEnabled false
+            // Сжатие только для библиотеки Kotlin: свой код (мост JavascriptInterface, службы, приёмники)
+            // остаётся как есть, без переименований — см. proguard-rules.pro
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystorePropsFile.exists()) {
                 signingConfig signingConfigs.release
             }
@@ -109,5 +112,22 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// Kotlin. Лямбды и «fun interface» собираются обычными классами, а не через invokedynamic:
+// в dex не должно быть LambdaMetafactory (проверка в .github/workflows/android.yml).
+// Проверки null на входе методов выключены: поведение как было на Java (WebView и Android иногда передают null).
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        freeCompilerArgs.addAll([
+                '-Xlambdas=class',
+                '-Xsam-conversions=class',
+                '-Xstring-concat=inline',
+                '-Xno-param-assertions',
+                '-Xno-call-assertions',
+                '-Xno-receiver-assertions',
+        ])
     }
 }
